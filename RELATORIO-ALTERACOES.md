@@ -1,105 +1,96 @@
-# Relatório de alterações — Finanças PWA 3.0
+# Relatório de alterações — Copiloto Financeiro 4.0
 
-## Resultado
+## Objetivo
 
-A PWA foi integrada ao projeto Supabase já configurado, usando a Project URL e a Publishable Key públicas fornecidas. A aplicação agora trabalha em modo **offline-first**: atualiza a interface e o cache local imediatamente e sincroniza as alterações com o Supabase quando existe conexão.
+Esta versão implementa juntas as três fundações solicitadas: **conciliação bancária verificável**, **regras de categorização explícitas e versionadas** e **fluxo de caixa realizado/comprometido/projetado com cenários editáveis**. Também inclui **criação de usuário na tela de acesso**.
 
-## Arquivos atualizados
+## 1. Conciliação bancária confiável e verificável
 
-- `index.html`: tela de login, estado de sincronização, identificação da conta, logout e orçamento por mês.
-- `app.js`: autenticação, CRUD no Supabase, cache por usuário, fila offline, migração, Realtime, deduplicação e compatibilidade com o esquema existente.
-- `styles.css`: estilos da autenticação e dos indicadores de sincronização.
-- `sw.js`: cache v3, shell da PWA, arquivos locais do PDF.js e cache do cliente Supabase após acesso online.
-- `manifest.webmanifest`: manifesto atualizado da PWA.
-- `README.md`: instruções de publicação e roteiro de testes.
+- Cada arquivo ou texto importado recebe um **SHA-256** calculado localmente.
+- Reimportação do mesmo arquivo é bloqueada pelo hash e também por restrição única no banco.
+- Cada lote registra: arquivo, hash, data, itens encontrados, importados, duplicados, erros e status.
+- Cada lançamento importado guarda: descrição e valor originais, arquivo, hash, linha, lote e estado da conciliação.
+- A prévia mostra **ORIGINAL × REGISTRO** antes da confirmação.
+- A tela `Planejar → Conciliação` mostra taxa conciliada, totais e comparação linha a linha.
+- A deduplicação verifica primeiro `hash + linha`; como segunda defesa, verifica data + tipo + valor + descrição normalizada.
+- A importação confirmada atualiza imediatamente **Lista**, **Dashboard**, **Fluxo** e **Oportunidades**.
 
-## Funcionalidades implementadas
+## 2. Regras de categorização explícitas e versionadas
 
-### Autenticação
+- Nova tela `Planejar → Regras`.
+- Tipos de correspondência: contém, começa com e igual a.
+- Prioridade configurável.
+- Cada alteração gera uma **nova versão imutável** do conteúdo da regra; a versão anterior deixa de ser corrente, mas permanece no banco.
+- Lançamentos registram a origem da categoria: `manual`, `rule`, `system:v1` ou migração.
+- Quando uma regra é aplicada, a movimentação registra o ID e a versão exata usados.
+- Ao corrigir manualmente uma categoria, o app pode perguntar se deve criar uma regra para o futuro.
+- A Lista identifica se a categoria foi manual, do sistema ou de uma regra versionada.
 
-- Login por e-mail e senha com Supabase Auth.
-- Sessão persistente entre acessos.
-- Logout com alerta quando há alterações offline pendentes.
-- Dados locais separados por `user_id`, evitando misturar caches de contas diferentes.
+## 3. Fluxo de caixa e cenários
 
-### Persistência e sincronização
+- Separação visível entre:
+  - **realizado**: lançamentos já ocorridos;
+  - **comprometido**: contas pendentes no mês do vencimento;
+  - **projetado adicional**: média histórica descontando o que já foi realizado.
+- Cenários editáveis com:
+  - variação de receita;
+  - redução geral de despesas;
+  - redução adicional em uma categoria;
+  - histórico de 1, 3, 6 ou 12 meses;
+  - horizonte de 3, 6 ou 12 meses.
+- Todas as premissas aparecem abaixo da projeção.
+- O cálculo evita dupla contagem: o projetado adicional subtrai valores já realizados.
+- Contas marcadas como pagas deixam de compor o comprometido.
 
-- `transactions`: inclusão, edição, exclusão e importação.
-- `budgets`: orçamento específico por mês.
-- `bills`: inclusão, baixa/reabertura e exclusão.
-- `ideas`: inclusão e exclusão.
-- Mapeamento compatível com as colunas já criadas no Supabase: `transaction_date`, `payment_method`, `due_date` e `status`.
-- Observações de movimentações preservadas dentro do campo textual `source`, em formato JSON compatível, sem exigir alteração adicional no banco.
-- `updated_at` continua administrado pelos triggers já criados no Supabase.
+## 4. Cadastro e autenticação
 
-### Offline-first e proteção contra duplicidades
+- A tela inicial agora alterna entre **Entrar** e **Criar usuário**.
+- Cadastro com nome, e-mail, senha e confirmação.
+- Compatível com confirmação de e-mail do Supabase.
+- Sessão persistente e renovação por refresh token.
+- Mesma conta sincroniza PC e celular.
+- Migração opcional dos dados locais da versão 2 para a conta autenticada.
 
-- Todas as alterações são aplicadas imediatamente à interface e ao cache local.
-- Operações sem internet entram em uma fila persistente por usuário.
-- A fila é compactada por tabela e registro, evitando o reenvio repetido da mesma alteração.
-- A sincronização é retomada automaticamente no evento `online` ou manualmente ao tocar no indicador de status.
-- Importações usam uma UUID determinística baseada em data, tipo, valor e descrição normalizada; o mesmo lançamento importado novamente recebe o mesmo identificador.
-- A checagem anterior de duplicidade por data, tipo, valor e descrição foi mantida.
+## 5. Integrações e funções preservadas
 
-### Migração segura
+- Supabase Auth e PostgreSQL com RLS.
+- Sincronização PC/celular, fila offline e cache separado por usuário.
+- Atualização ao recuperar conexão, voltar ao app e a cada 90 segundos quando visível.
+- Importação PDF/CSV/TXT e texto colado.
+- PDF.js local, sem CDN em tempo de execução.
+- Lista, Dashboard, Oportunidades, Contas, orçamento e backup JSON.
+- PWA instalável e cache offline do **app shell**.
+- GitHub Pages continua sendo apenas a hospedagem dos arquivos estáticos.
 
-- Após o primeiro login, a PWA procura a base local da versão 2.
-- Se houver dados, solicita confirmação antes de migrar.
-- Antes da migração, grava uma cópia local com chave `financas_pwa_v2_backup_<timestamp>`.
-- A migração cria UUIDs válidas, coloca os registros na fila e preserva a base anterior.
-- Um marcador por usuário evita repetir a migração no mesmo dispositivo.
+## 6. Oportunidades
 
-### Realtime
+- Compara cada categoria do mês com a média dos três meses anteriores com dados.
+- Só mostra uma oportunidade quando a diferença é material.
+- Exibe gasto atual, média, potencial estimado e atalho para os lançamentos.
+- O cálculo é determinístico; não inventa dados nem envia o histórico a um modelo generativo.
 
-- A PWA assina mudanças do esquema `public` para o usuário autenticado.
-- Ao receber uma alteração em qualquer uma das quatro tabelas, recarrega a base da nuvem e atualiza Lista, Dashboard, boletos, ideias e orçamentos.
+## 7. Segurança aplicada
 
-### Importação e PDF
+- Nenhuma `service_role`, senha de banco ou chave secreta foi incluída.
+- A publishable key permanece pública por projeto; o acesso aos dados depende do token do usuário e das políticas RLS.
+- O service worker foi corrigido para **nunca armazenar respostas do Supabase/Auth**.
+- HTML proveniente de dados do usuário é escapado antes de renderizar.
+- Exclusão e operações destrutivas exigem confirmação.
+- O SHA-256 prova igualdade do arquivo, mas não substitui backup nem assinatura digital bancária.
 
-- O fluxo continua sendo: arquivo → leitura local → prévia → confirmação → cache local → Supabase → Lista/Dashboard.
-- `vendor/pdf.mjs` e `vendor/pdf.worker.mjs` continuam locais e não foram modificados.
-- O arquivo PDF original não é enviado ao Supabase; somente as movimentações confirmadas são persistidas.
+## 8. Mudanças de banco necessárias
 
-## Publicação no GitHub Pages
+Execute `supabase-migration-v4.sql` no SQL Editor antes de publicar o frontend. A migração é idempotente e:
 
-1. Faça backup do repositório atual.
-2. Extraia o pacote na raiz do repositório, substituindo os arquivos de mesmo nome.
-3. **Não apague a pasta `vendor` existente.** Ela deve continuar contendo:
-   - `vendor/pdf.mjs`
-   - `vendor/pdf.worker.mjs`
-   - `vendor/PDFJS-LICENSE.txt` (ou a licença no local já usado pelo repositório)
-4. Confirme que a pasta `icons` contém os três ícones.
-5. Envie as alterações ao branch publicado pelo GitHub Pages.
-6. Abra o site conectado à internet e faça uma recarga completa. No iPhone, se a versão instalada continuar antiga, feche a PWA, abra o endereço no Safari e atualize antes de abrir novamente pelo ícone.
+- preserva as quatro tabelas existentes;
+- adiciona colunas de auditoria às movimentações;
+- cria `import_batches`, `category_rules` e `cashflow_scenarios`;
+- cria índices, triggers, RLS e políticas por usuário;
+- mantém/publica as tabelas no Supabase Realtime.
 
-## Roteiro objetivo de teste
+## 9. Limites conhecidos
 
-1. **Login:** entrar com o usuário já criado no Supabase.
-2. **Migração:** se aparecer a confirmação, migrar e conferir os totais antigos.
-3. **Movimentação:** criar uma despesa no celular e verificar Lista e Dashboard.
-4. **PC:** entrar com a mesma conta e confirmar que o registro aparece.
-5. **Edição/exclusão:** alterar e depois excluir um item; confirmar no outro dispositivo.
-6. **Importação:** importar PDF/CSV/TXT, revisar a prévia e confirmar; conferir Lista e Dashboard.
-7. **Duplicidade:** importar o mesmo arquivo novamente; os itens devem ser indicados como duplicados ou não gerar novos registros.
-8. **Orçamento:** salvar um valor para um mês e conferir o mês correspondente no Dashboard.
-9. **Boletos/ideias:** criar, alterar o status e excluir; conferir no segundo dispositivo.
-10. **Offline:** desligar a rede, criar um item, verificar o status “Offline”, religar a rede e aguardar “Sincronizado”.
-11. **Realtime:** deixar PC e celular abertos; alterar em um e observar a atualização no outro.
-12. **PWA/PDF:** confirmar instalação e leitura de PDF depois que o service worker v3 estiver ativo.
-
-## Observações de segurança
-
-- A Publishable Key fica no frontend por definição e depende de Auth + RLS para proteção.
-- Não foram usadas nem incluídas Secret Key, `service_role`, senha do banco ou connection string.
-- O funcionamento pressupõe que as políticas RLS já criadas continuam habilitadas nas quatro tabelas.
-- O cache financeiro local segue a segurança do próprio dispositivo/navegador; use bloqueio de tela e evite dispositivos compartilhados.
-
-## Validação executada
-
-- Verificação de sintaxe de `app.js` e `sw.js`.
-- 16 asserções automatizadas para valores monetários, datas, categorização, CSV, migração de orçamento, UUID determinística, mapeamento para o Supabase, compactação e processamento da fila.
-- Conferência de 92 IDs HTML únicos e 78 referências JavaScript sem elemento ausente.
-- Validação do JSON do manifesto, lista de recursos do service worker e ausência de Secret Key/`service_role` no JavaScript.
-- Teste HTTP local de carregamento de `index.html` e `app.js`.
-
-A conexão autenticada com o projeto real não foi exercitada porque a senha do usuário não foi fornecida nem deve ser incorporada ao pacote; o roteiro acima valida esse último trecho após a publicação.
+- A leitura de PDF depende de o arquivo conter texto; PDFs apenas escaneados exigiriam OCR, que não foi adicionado para não enviar documentos a terceiros.
+- A projeção é uma estimativa baseada em médias e premissas escolhidas; não é garantia de resultado.
+- O token e o cache local ficam no armazenamento do navegador. Um dispositivo desbloqueado ou comprometido pode expor os dados locais.
+- O frontend não executa sozinho alterações de esquema: a migração SQL é obrigatória uma vez.

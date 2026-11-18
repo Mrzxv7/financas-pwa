@@ -7,275 +7,116 @@
   <meta name="color-scheme" content="dark">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Finanças">
-  <meta name="description" content="Controle financeiro pessoal sincronizado com Supabase, com cache offline.">
+  <meta name="apple-mobile-web-app-title" content="Copiloto Financeiro">
+  <meta name="description" content="Copiloto financeiro pessoal auditável, sincronizado e instalável.">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/icon-180.png">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="stylesheet" href="styles.css">
-  <title>Finanças</title>
+  <title>Copiloto Financeiro</title>
 </head>
 <body>
-  <section id="authGate" class="auth-gate">
-    <div class="auth-card">
-      <div class="auth-brand" aria-hidden="true">R$</div>
-      <p class="eyebrow">FINANÇAS PWA</p>
-      <h1>Entre na sua conta</h1>
-      <p id="authMessage" class="muted">Use o mesmo login no celular e no computador para manter tudo sincronizado.</p>
-      <form id="authForm" class="auth-form">
-        <label>E-mail<input id="authEmail" type="email" autocomplete="username" inputmode="email" required placeholder="seu@email.com"></label>
-        <label>Senha<input id="authPassword" type="password" autocomplete="current-password" required minlength="6" placeholder="Sua senha"></label>
-        <button class="button primary" type="submit">Entrar</button>
+  <section id="authScreen" class="auth-screen" aria-labelledby="authTitle">
+    <div class="auth-brand"><span class="brand-mark">◆</span><p class="eyebrow">SEUS DADOS, SUAS DECISÕES</p><h1 id="authTitle">Copiloto Financeiro</h1><p>Concilie, categorize e planeje com dados verificáveis.</p></div>
+    <div class="card auth-card">
+      <div class="auth-tabs" role="tablist">
+        <button id="loginTab" class="tab active" type="button">Entrar</button>
+        <button id="signupTab" class="tab" type="button">Criar usuário</button>
+      </div>
+      <form id="authForm" novalidate>
+        <label id="nameField" class="hidden">Nome<input id="authName" type="text" autocomplete="name" maxlength="80" placeholder="Como quer ser chamado"></label>
+        <label>E-mail<input id="authEmail" type="email" autocomplete="email" required placeholder="voce@exemplo.com"></label>
+        <label>Senha<input id="authPassword" type="password" autocomplete="current-password" minlength="8" required placeholder="Mínimo de 8 caracteres"></label>
+        <label id="confirmField" class="hidden">Confirmar senha<input id="authPasswordConfirm" type="password" autocomplete="new-password" minlength="8" placeholder="Repita a senha"></label>
+        <button id="authSubmit" class="button primary" type="submit">Entrar</button>
+        <p id="authHelp" class="helper-text">Use a mesma conta no PC e no celular para sincronizar.</p>
       </form>
-      <small>Primeiro acesso requer internet. Depois, a sessão e o cache permitem continuar usando a PWA offline.</small>
     </div>
+    <p class="auth-security">🔒 Autenticação Supabase • conexão HTTPS • isolamento por usuário (RLS)</p>
   </section>
 
   <div id="appShell" class="app-shell hidden">
     <header class="topbar">
-      <div>
-        <p class="eyebrow">CONTROLE PESSOAL</p>
-        <h1>Finanças</h1>
-      </div>
-      <div class="topbar-actions">
-        <button id="retrySyncBtn" class="sync-status" type="button" title="Sincronizar agora"><i id="syncDot" class="sync-dot pending"></i><span id="syncText">Conectando...</span></button>
-        <span id="userEmail" class="user-email"></span>
-        <button id="logoutBtn" class="icon-button" type="button" aria-label="Sair" title="Sair">↪</button>
-        <button id="installBtn" class="icon-button hidden" type="button" aria-label="Instalar aplicativo" title="Instalar aplicativo"><span aria-hidden="true">⇩</span></button>
+      <div><p class="eyebrow">COPILOTO FINANCEIRO</p><h1>Finanças</h1></div>
+      <div class="top-actions">
+        <span id="syncStatus" class="sync-pill" title="Estado da sincronização">● Sincronizando</span>
+        <button id="accountBtn" class="icon-button" type="button" aria-label="Conta e sair" title="Conta">☺</button>
+        <button id="installBtn" class="icon-button hidden" type="button" aria-label="Instalar aplicativo" title="Instalar">⇩</button>
       </div>
     </header>
 
     <main id="mainContent">
-      <section id="view-dashboard" class="view active" data-view="dashboard" aria-labelledby="dashboardTitle">
-        <div class="section-heading inline-heading">
-          <div>
-            <p class="eyebrow">VISÃO GERAL</p>
-            <h2 id="dashboardTitle">Seu mês</h2>
-          </div>
-          <label class="compact-field">
-            <span class="sr-only">Mês do dashboard</span>
-            <input id="dashboardMonth" type="month">
-          </label>
-        </div>
-
-        <div class="hero-balance card accent-card">
-          <div>
-            <p>Saldo do mês</p>
-            <strong id="balanceValue">R$ 0,00</strong>
-          </div>
-          <span id="balanceBadge" class="status-pill neutral">Sem dados</span>
-        </div>
-
+      <section id="view-dashboard" class="view active" data-view="dashboard">
+        <div class="section-heading inline-heading"><div><p class="eyebrow">VISÃO GERAL</p><h2>Seu mês</h2></div><label class="compact-field"><span class="sr-only">Mês</span><input id="dashboardMonth" type="month"></label></div>
+        <div class="hero-balance card accent-card"><div><p>Saldo realizado</p><strong id="balanceValue">R$ 0,00</strong></div><span id="balanceBadge" class="status-pill neutral">Sem dados</span></div>
         <div class="metric-grid">
-          <article class="card metric-card">
-            <span class="metric-icon income">↗</span>
-            <p>Receitas</p>
-            <strong id="incomeValue">R$ 0,00</strong>
-          </article>
-          <article class="card metric-card">
-            <span class="metric-icon expense">↘</span>
-            <p>Despesas</p>
-            <strong id="expenseValue">R$ 0,00</strong>
-          </article>
-          <article class="card metric-card">
-            <span class="metric-icon saving">%</span>
-            <p>Taxa de economia</p>
-            <strong id="savingRateValue">0%</strong>
-          </article>
-          <article class="card metric-card">
-            <span class="metric-icon budget">◎</span>
-            <p>Margem do orçamento</p>
-            <strong id="budgetMarginValue">R$ 0,00</strong>
-          </article>
+          <article class="card metric-card"><span class="metric-icon income">↗</span><p>Receitas</p><strong id="incomeValue">R$ 0,00</strong></article>
+          <article class="card metric-card"><span class="metric-icon expense">↘</span><p>Despesas</p><strong id="expenseValue">R$ 0,00</strong></article>
+          <article class="card metric-card"><span class="metric-icon saving">%</span><p>Taxa de economia</p><strong id="savingRateValue">0%</strong></article>
+          <article class="card metric-card"><span class="metric-icon budget">◎</span><p>Margem do orçamento</p><strong id="budgetMarginValue">R$ 0,00</strong></article>
         </div>
-
-        <article class="card">
-          <div class="card-title-row">
-            <div>
-              <p class="eyebrow">ORÇAMENTO</p>
-              <h3>Limite mensal</h3>
-            </div>
-            <strong id="budgetPercent">0%</strong>
-          </div>
-          <div class="progress-track" aria-hidden="true"><div id="budgetProgress" class="progress-fill"></div></div>
-          <div class="card-caption"><span id="budgetSpent">R$ 0,00 usados</span><span id="budgetTotal">de R$ 0,00</span></div>
-        </article>
-
+        <article class="card projection-card"><div class="card-title-row"><div><p class="eyebrow">FLUXO DE CAIXA</p><h3>Real × comprometido × projetado</h3></div><button class="text-button" type="button" data-go="planning" data-plan-tab="cashflow">Detalhes</button></div><div id="cashflowSnapshot" class="triple-metric"></div><p id="cashflowAssumption" class="audit-note"></p></article>
+        <article class="card opportunity-highlight"><div class="card-title-row"><div><p class="eyebrow">OPORTUNIDADE</p><h3>Principal recomendação</h3></div><button class="text-button" type="button" data-go="planning" data-plan-tab="opportunities">Ver todas</button></div><div id="opportunitySnapshot" class="empty-state">Histórico insuficiente para analisar.</div></article>
         <div class="dashboard-grid">
-          <article class="card chart-card">
-            <div class="card-title-row">
-              <div><p class="eyebrow">ÚLTIMOS 6 MESES</p><h3>Evolução</h3></div>
-            </div>
-            <div id="trendChart" class="svg-chart" role="img" aria-label="Evolução mensal de receitas e despesas"></div>
-            <div class="legend"><span><i class="dot income-dot"></i>Receitas</span><span><i class="dot expense-dot"></i>Despesas</span></div>
-          </article>
-
-          <article class="card">
-            <div class="card-title-row">
-              <div><p class="eyebrow">DISTRIBUIÇÃO</p><h3>Gastos por categoria</h3></div>
-            </div>
-            <div class="category-layout">
-              <div id="categoryDonut" class="donut" aria-label="Gráfico de despesas por categoria"><span id="donutTotal">R$ 0</span></div>
-              <div id="categoryLegend" class="category-legend"></div>
-            </div>
-          </article>
+          <article class="card chart-card"><div class="card-title-row"><div><p class="eyebrow">ÚLTIMOS 6 MESES</p><h3>Evolução</h3></div></div><div id="trendChart" class="svg-chart" role="img" aria-label="Receitas e despesas dos últimos meses"></div><div class="legend"><span><i class="dot income-dot"></i>Receitas</span><span><i class="dot expense-dot"></i>Despesas</span></div></article>
+          <article class="card"><div class="card-title-row"><div><p class="eyebrow">DISTRIBUIÇÃO</p><h3>Gastos por categoria</h3></div></div><div class="category-layout"><div id="categoryDonut" class="donut"><span id="donutTotal">R$ 0</span></div><div id="categoryLegend" class="category-legend"></div></div></article>
         </div>
-
-        <article class="card">
-          <div class="card-title-row">
-            <div><p class="eyebrow">DESTAQUES</p><h3>Maiores despesas</h3></div>
-            <button class="text-button" type="button" data-go="transactions">Ver todas</button>
-          </div>
-          <div id="topExpenses" class="simple-list empty-state">Nenhuma despesa neste mês.</div>
-        </article>
+        <article class="card"><div class="card-title-row"><div><p class="eyebrow">DESTAQUES</p><h3>Maiores despesas</h3></div><button class="text-button" type="button" data-go="transactions">Ver todas</button></div><div id="topExpenses" class="simple-list empty-state">Nenhuma despesa neste mês.</div></article>
       </section>
 
-      <section id="view-add" class="view" data-view="add" aria-labelledby="addTitle">
-        <div class="section-heading">
-          <p class="eyebrow">LANÇAMENTO</p>
-          <h2 id="addTitle">Nova movimentação</h2>
-          <p>Registre receitas e despesas em poucos segundos.</p>
-        </div>
+      <section id="view-add" class="view" data-view="add">
+        <div class="section-heading"><p class="eyebrow">LANÇAMENTO</p><h2>Nova movimentação</h2><p>Registre receitas e despesas. A origem e a categorização ficam auditáveis.</p></div>
         <form id="transactionForm" class="card form-card" novalidate>
-          <input id="transactionId" type="hidden">
-          <div class="segmented" role="group" aria-label="Tipo da movimentação">
-            <button class="segment active" type="button" data-type="expense">Despesa</button>
-            <button class="segment" type="button" data-type="income">Receita</button>
-          </div>
-          <input id="transactionType" type="hidden" value="expense">
-          <label>Descrição<input id="description" type="text" maxlength="90" placeholder="Ex.: Supermercado" autocomplete="off" required></label>
-          <label>Valor<input id="amount" type="text" inputmode="decimal" placeholder="R$ 0,00" autocomplete="off" required></label>
-          <div class="form-grid">
-            <label>Categoria<select id="category" required></select></label>
-            <label>Data<input id="date" type="date" required></label>
-          </div>
+          <input id="transactionId" type="hidden"><div class="segmented"><button class="segment active" type="button" data-type="expense">Despesa</button><button class="segment" type="button" data-type="income">Receita</button></div><input id="transactionType" type="hidden" value="expense">
+          <label>Descrição<input id="description" type="text" maxlength="90" placeholder="Ex.: Supermercado" required></label><label>Valor<input id="amount" type="text" inputmode="decimal" placeholder="R$ 0,00" required></label>
+          <div class="form-grid"><label>Categoria<select id="category" required></select></label><label>Data<input id="date" type="date" required></label></div>
           <label>Forma de pagamento<select id="paymentMethod"><option>Pix</option><option>Débito</option><option>Crédito</option><option>Dinheiro</option><option>Transferência</option><option>Boleto</option><option>Outro</option></select></label>
-          <label>Observações (opcional)<textarea id="notes" rows="3" maxlength="240" placeholder="Detalhes adicionais"></textarea></label>
-          <div class="form-actions">
-            <button id="cancelEditBtn" class="button secondary hidden" type="button">Cancelar</button>
-            <button class="button primary" type="submit"><span id="saveTransactionText">Salvar movimentação</span></button>
-          </div>
+          <label>Observações<textarea id="notes" rows="3" maxlength="240" placeholder="Detalhes adicionais"></textarea></label>
+          <label class="check-row"><input id="createRuleAfterSave" type="checkbox"> Perguntar se quero transformar esta categoria em regra</label>
+          <div class="form-actions"><button id="cancelEditBtn" class="button secondary hidden" type="button">Cancelar</button><button class="button primary" type="submit"><span id="saveTransactionText">Salvar movimentação</span></button></div>
         </form>
       </section>
 
-      <section id="view-transactions" class="view" data-view="transactions" aria-labelledby="transactionsTitle">
-        <div class="section-heading inline-heading">
-          <div><p class="eyebrow">HISTÓRICO</p><h2 id="transactionsTitle">Movimentações</h2></div>
-          <button class="button small-button" type="button" data-go="add">+ Adicionar</button>
-        </div>
-        <div class="card filters-card">
-          <label class="search-field"><span aria-hidden="true">⌕</span><input id="searchTransactions" type="search" placeholder="Buscar descrição"></label>
-          <div class="filter-grid">
-            <label><span class="sr-only">Mês</span><input id="listMonth" type="month"></label>
-            <label><span class="sr-only">Tipo</span><select id="filterType"><option value="all">Todos os tipos</option><option value="expense">Despesas</option><option value="income">Receitas</option></select></label>
-            <label><span class="sr-only">Categoria</span><select id="filterCategory"><option value="all">Todas categorias</option></select></label>
-          </div>
-        </div>
-        <div id="listSummary" class="list-summary"></div>
-        <div id="transactionList" class="transaction-list"></div>
+      <section id="view-transactions" class="view" data-view="transactions">
+        <div class="section-heading inline-heading"><div><p class="eyebrow">HISTÓRICO AUDITÁVEL</p><h2>Lista</h2></div><button class="button small-button" type="button" data-go="add">+ Adicionar</button></div>
+        <div class="card filters-card"><label class="search-field"><span>⌕</span><input id="searchTransactions" type="search" placeholder="Buscar descrição"></label><div class="filter-grid"><label><span class="sr-only">Mês</span><input id="listMonth" type="month"></label><label><span class="sr-only">Tipo</span><select id="filterType"><option value="all">Todos os tipos</option><option value="expense">Despesas</option><option value="income">Receitas</option></select></label><label><span class="sr-only">Categoria</span><select id="filterCategory"><option value="all">Todas categorias</option></select></label></div></div>
+        <div id="listSummary" class="list-summary"></div><div id="transactionList" class="transaction-list"></div>
       </section>
 
-      <section id="view-import" class="view" data-view="import" aria-labelledby="importTitle">
-        <div class="section-heading">
-          <p class="eyebrow">IMPORTAÇÃO SEGURA</p>
-          <h2 id="importTitle">Importar fatura ou extrato</h2>
-          <p>Analise primeiro, confira os dados e só depois grave na sua base.</p>
-        </div>
-        <article class="card import-card">
-          <label id="dropZone" class="drop-zone" for="importFile">
-            <span class="upload-icon" aria-hidden="true">⇧</span>
-            <strong>Selecionar arquivos</strong>
-            <span>PDF, CSV ou TXT • vários arquivos permitidos</span>
-            <input id="importFile" type="file" accept=".pdf,.csv,.txt,text/csv,text/plain,application/pdf" multiple>
-          </label>
-          <div class="divider"><span>ou cole o conteúdo</span></div>
-          <label>Texto do extrato<textarea id="pasteText" rows="7" placeholder="03/11/2026 IFOOD 46,90&#10;04/11/2026 POSTO 210,00"></textarea></label>
-          <button id="analyzeTextBtn" class="button primary" type="button">Analisar texto</button>
-          <p id="pdfHint" class="helper-text">O leitor de PDF está incluído no pacote e funciona sem CDN.</p>
-        </article>
-
-        <article id="importResult" class="card hidden" aria-live="polite">
-          <div class="card-title-row">
-            <div><p class="eyebrow">CONFERÊNCIA</p><h3>Lançamentos encontrados</h3></div>
-            <span id="importCount" class="status-pill neutral">0 itens</span>
-          </div>
-          <div id="importStats" class="import-stats"></div>
-          <div id="importPreview" class="preview-list"></div>
-          <div class="sticky-actions">
-            <button id="cancelImportBtn" class="button secondary" type="button">Cancelar</button>
-            <button id="confirmImportBtn" class="button primary" type="button">Importar selecionados</button>
-          </div>
-        </article>
+      <section id="view-import" class="view" data-view="import">
+        <div class="section-heading"><p class="eyebrow">IMPORTAÇÃO VERIFICÁVEL</p><h2>Importar e conciliar</h2><p>O arquivo original recebe hash SHA-256; nenhuma categoria é gravada sem mostrar qual regra foi aplicada.</p></div>
+        <article class="card import-card"><label id="dropZone" class="drop-zone" for="importFile"><span class="upload-icon">⇧</span><strong>Selecionar arquivos</strong><span>PDF, CSV ou TXT • vários arquivos</span><input id="importFile" type="file" accept=".pdf,.csv,.txt,text/csv,text/plain,application/pdf" multiple></label><div class="divider"><span>ou cole o conteúdo</span></div><label>Texto do extrato<textarea id="pasteText" rows="7" placeholder="03/11/2026 IFOOD 46,90"></textarea></label><button id="analyzeTextBtn" class="button primary" type="button">Analisar texto</button><p id="pdfHint" class="helper-text">O PDF.js permanece local; os arquivos financeiros não são enviados a serviços de OCR.</p></article>
+        <article id="importResult" class="card hidden" aria-live="polite"><div class="card-title-row"><div><p class="eyebrow">CONFERÊNCIA</p><h3>Original × registro</h3></div><span id="importCount" class="status-pill neutral">0 itens</span></div><div id="importStats" class="import-stats"></div><div id="importPreview" class="preview-list"></div><div class="sticky-actions"><button id="cancelImportBtn" class="button secondary" type="button">Cancelar</button><button id="confirmImportBtn" class="button primary" type="button">Importar selecionados</button></div></article>
+        <article class="card"><div class="card-title-row"><div><p class="eyebrow">ÚLTIMOS LOTES</p><h3>Conciliação</h3></div><button class="text-button" type="button" data-go="planning" data-plan-tab="reconciliation">Ver auditoria</button></div><div id="importBatchSnapshot" class="simple-list empty-state">Nenhuma importação registrada.</div></article>
       </section>
 
-      <section id="view-more" class="view" data-view="more" aria-labelledby="moreTitle">
-        <div class="section-heading"><p class="eyebrow">ORGANIZAÇÃO</p><h2 id="moreTitle">Planejar e configurar</h2></div>
-        <div class="tab-strip" role="tablist">
-          <button class="tab active" type="button" data-more-tab="bills">Contas</button>
-          <button class="tab" type="button" data-more-tab="ideas">Ideias</button>
-          <button class="tab" type="button" data-more-tab="settings">Ajustes</button>
+      <section id="view-planning" class="view" data-view="planning">
+        <div class="section-heading"><p class="eyebrow">PLANEJAMENTO E CONTROLE</p><h2>Copiloto</h2><p>Premissas explícitas, cenários editáveis e rastreabilidade.</p></div>
+        <div class="plan-tabs" role="tablist"><button class="tab active" data-plan-tab="cashflow">Fluxo</button><button class="tab" data-plan-tab="reconciliation">Conciliação</button><button class="tab" data-plan-tab="rules">Regras</button><button class="tab" data-plan-tab="opportunities">Oportunidades</button><button class="tab" data-plan-tab="bills">Contas</button><button class="tab" data-plan-tab="settings">Ajustes</button></div>
+
+        <div id="plan-cashflow" class="plan-panel active">
+          <form id="scenarioForm" class="card form-card compact-form"><div class="card-title-row"><div><p class="eyebrow">CENÁRIO EDITÁVEL</p><h3>Premissas da projeção</h3></div></div><label>Nome do cenário<input id="scenarioName" maxlength="60" value="Base"></label><div class="form-grid"><label>Variação da receita (%)<input id="incomeChange" type="number" min="-100" max="500" step="1" value="0"></label><label>Redução geral de despesas (%)<input id="expenseReduction" type="number" min="0" max="100" step="1" value="0"></label></div><div class="form-grid"><label>Meses usados na média<select id="historyMonths"><option>1</option><option selected>3</option><option>6</option><option>12</option></select></label><label>Horizonte projetado<select id="projectionMonths"><option>3</option><option selected>6</option><option>12</option></select></label></div><label>Redução adicional em categoria<select id="scenarioCategory"></select></label><label>Redução dessa categoria (%)<input id="categoryReduction" type="number" min="0" max="100" step="1" value="0"></label><button class="button primary" type="submit">Salvar e recalcular cenário</button></form>
+          <article class="card"><div class="card-title-row"><div><p class="eyebrow">PROJEÇÃO</p><h3 id="scenarioResultTitle">Cenário Base</h3></div><span id="scenarioStatus" class="status-pill neutral">Premissas visíveis</span></div><div id="cashflowSummary" class="triple-metric"></div><div id="cashflowTable" class="data-table-wrap"></div><div id="cashflowPremises" class="premise-list"></div></article>
         </div>
 
-        <div id="more-bills" class="more-panel active">
-          <form id="billForm" class="card form-card compact-form">
-            <div class="card-title-row"><div><p class="eyebrow">A PAGAR</p><h3>Nova conta</h3></div></div>
-            <label>Descrição<input id="billDescription" type="text" placeholder="Ex.: Energia" required></label>
-            <div class="form-grid"><label>Valor<input id="billAmount" type="text" inputmode="decimal" placeholder="R$ 0,00" required></label><label>Vencimento<input id="billDue" type="date" required></label></div>
-            <button class="button primary" type="submit">Adicionar conta</button>
-          </form>
-          <div id="billSummary" class="list-summary"></div>
-          <div id="billList" class="transaction-list"></div>
-        </div>
+        <div id="plan-reconciliation" class="plan-panel"><article class="card"><div class="card-title-row"><div><p class="eyebrow">QUALIDADE DO DADO</p><h3>Indicadores de conciliação</h3></div></div><div id="reconciliationMetrics" class="metric-grid compact-metrics"></div></article><div id="reconciliationList" class="batch-list"></div></div>
 
-        <div id="more-ideas" class="more-panel">
-          <form id="ideaForm" class="card form-card compact-form">
-            <div class="card-title-row"><div><p class="eyebrow">ANOTAÇÕES</p><h3>Nova ideia ou meta</h3></div></div>
-            <label>Texto<textarea id="ideaText" rows="4" maxlength="400" placeholder="Ex.: Reduzir pedidos por delivery" required></textarea></label>
-            <button class="button primary" type="submit">Salvar ideia</button>
-          </form>
-          <div id="ideaList" class="notes-grid"></div>
-        </div>
+        <div id="plan-rules" class="plan-panel"><form id="ruleForm" class="card form-card compact-form"><input id="ruleId" type="hidden"><div class="card-title-row"><div><p class="eyebrow">REGRA EXPLÍCITA</p><h3>Nova regra de categoria</h3></div></div><label>Descrição contém<input id="rulePattern" maxlength="80" placeholder="Ex.: IFOOD" required></label><div class="form-grid"><label>Tipo de correspondência<select id="ruleMatch"><option value="contains">Contém</option><option value="starts_with">Começa com</option><option value="exact">Igual a</option></select></label><label>Categoria<select id="ruleCategory"></select></label></div><label>Prioridade<input id="rulePriority" type="number" min="1" max="999" value="100"></label><label class="check-row"><input id="ruleActive" type="checkbox" checked> Regra ativa</label><button class="button primary" type="submit">Salvar nova versão</button></form><article class="card"><div class="card-title-row"><div><p class="eyebrow">VERSIONAMENTO</p><h3>Regras cadastradas</h3></div><span id="ruleAutomationRate" class="status-pill neutral">0% automáticas</span></div><div id="ruleList" class="rule-list"></div></article></div>
 
-        <div id="more-settings" class="more-panel">
-          <form id="settingsForm" class="card form-card compact-form">
-            <div class="card-title-row"><div><p class="eyebrow">PREFERÊNCIAS</p><h3>Orçamento mensal</h3></div></div>
-            <div class="form-grid"><label>Mês<input id="budgetMonth" type="month" required></label><label>Valor planejado<input id="monthlyBudget" type="text" inputmode="decimal" placeholder="R$ 0,00"></label></div>
-            <button class="button primary" type="submit">Salvar orçamento</button>
-          </form>
-          <article class="card">
-            <div class="card-title-row"><div><p class="eyebrow">SEUS DADOS</p><h3>Backup e restauração</h3></div></div>
-            <p class="muted">Os dados são sincronizados com sua conta no Supabase. O cache local mantém o uso offline e o backup JSON oferece uma cópia adicional.</p>
-            <div class="stack-actions">
-              <button id="exportBtn" class="button secondary" type="button">Exportar backup JSON</button>
-              <label class="button secondary file-button">Restaurar backup<input id="restoreFile" type="file" accept="application/json,.json"></label>
-              <button id="clearBtn" class="button danger" type="button">Apagar todos os dados</button>
-            </div>
-          </article>
-          <article class="card about-card"><strong>Finanças PWA</strong><span>Versão 3.0 • Supabase • offline-first</span></article>
-        </div>
+        <div id="plan-opportunities" class="plan-panel"><article class="card"><div class="card-title-row"><div><p class="eyebrow">ASSISTENTE BASEADO EM DADOS</p><h3>Oportunidades do mês</h3></div><label class="compact-field"><span class="sr-only">Mês</span><input id="opportunityMonth" type="month"></label></div><div id="opportunityTotal" class="hero-number"></div><div id="opportunityList" class="opportunity-list"></div><p class="audit-note">As recomendações são cálculos determinísticos sobre o histórico carregado; não são aconselhamento financeiro.</p></article></div>
+
+        <div id="plan-bills" class="plan-panel"><form id="billForm" class="card form-card compact-form"><div class="card-title-row"><div><p class="eyebrow">COMPROMETIDO</p><h3>Nova conta</h3></div></div><label>Descrição<input id="billDescription" required placeholder="Ex.: Energia"></label><div class="form-grid"><label>Valor<input id="billAmount" inputmode="decimal" required></label><label>Vencimento<input id="billDue" type="date" required></label></div><button class="button primary" type="submit">Adicionar conta</button></form><div id="billSummary" class="list-summary"></div><div id="billList" class="transaction-list"></div></div>
+
+        <div id="plan-settings" class="plan-panel"><form id="settingsForm" class="card form-card compact-form"><div class="card-title-row"><div><p class="eyebrow">PREFERÊNCIAS</p><h3>Orçamento mensal</h3></div></div><label>Valor planejado<input id="monthlyBudget" inputmode="decimal" placeholder="R$ 0,00"></label><button class="button primary" type="submit">Salvar orçamento</button></form><article class="card"><div class="card-title-row"><div><p class="eyebrow">SEUS DADOS</p><h3>Portabilidade</h3></div></div><p class="muted">Exporte um pacote completo com movimentações, lotes, regras, cenários, contas e trilha de auditoria.</p><div class="stack-actions"><button id="exportBtn" class="button secondary" type="button">Exportar backup JSON</button><label class="button secondary file-button">Restaurar backup<input id="restoreFile" type="file" accept="application/json,.json"></label><button id="logoutBtn" class="button secondary" type="button">Sair da conta</button><button id="clearBtn" class="button danger" type="button">Apagar meus dados</button></div></article><article class="card about-card"><strong>Copiloto Financeiro</strong><span>Versão 4.0 • auditável • Supabase • PWA</span></article></div>
       </section>
     </main>
 
-    <nav class="bottom-nav" aria-label="Navegação principal">
-      <button class="nav-item active" type="button" data-nav="dashboard"><span aria-hidden="true">⌂</span><small>Início</small></button>
-      <button class="nav-item" type="button" data-nav="add"><span aria-hidden="true">＋</span><small>Adicionar</small></button>
-      <button class="nav-item" type="button" data-nav="transactions"><span aria-hidden="true">☷</span><small>Lista</small></button>
-      <button class="nav-item" type="button" data-nav="import"><span aria-hidden="true">⇧</span><small>Importar</small></button>
-      <button class="nav-item" type="button" data-nav="more"><span aria-hidden="true">•••</span><small>Mais</small></button>
-    </nav>
+    <nav class="bottom-nav" aria-label="Navegação principal"><button class="nav-item active" data-nav="dashboard"><span>⌂</span><small>Início</small></button><button class="nav-item" data-nav="add"><span>＋</span><small>Adicionar</small></button><button class="nav-item" data-nav="transactions"><span>☷</span><small>Lista</small></button><button class="nav-item" data-nav="import"><span>⇧</span><small>Importar</small></button><button class="nav-item" data-nav="planning"><span>◇</span><small>Planejar</small></button></nav>
   </div>
 
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <div id="loadingOverlay" class="loading-overlay hidden" aria-live="assertive"><div class="spinner"></div><strong id="loadingText">Processando...</strong></div>
-  <dialog id="confirmDialog" class="dialog">
-    <form method="dialog">
-      <h3 id="dialogTitle">Confirmar ação</h3>
-      <p id="dialogMessage"></p>
-      <div class="dialog-actions"><button class="button secondary" value="cancel">Cancelar</button><button id="dialogConfirm" class="button danger" value="confirm">Confirmar</button></div>
-    </form>
-  </dialog>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div><div id="loadingOverlay" class="loading-overlay hidden" aria-live="assertive"><div class="spinner"></div><strong id="loadingText">Processando...</strong></div>
+  <dialog id="confirmDialog" class="dialog"><form method="dialog"><h3 id="dialogTitle">Confirmar ação</h3><p id="dialogMessage"></p><div class="dialog-actions"><button class="button secondary" value="cancel">Cancelar</button><button id="dialogConfirm" class="button danger" value="confirm">Confirmar</button></div></form></dialog>
+  <dialog id="accountDialog" class="dialog"><form method="dialog"><h3>Conta</h3><p id="accountEmail"></p><div class="dialog-actions"><button class="button secondary" value="cancel">Fechar</button><button id="dialogLogout" class="button danger" value="confirm">Sair</button></div></form></dialog>
   <script type="module" src="app.js"></script>
 </body>
 </html>
