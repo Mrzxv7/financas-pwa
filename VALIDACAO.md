@@ -1,4 +1,4 @@
-# Validação técnica — versão 4.5.0 adaptadores e mapeador
+# Validação técnica — versão 4.6.0 MFA opcional e step-up
 
 ## Verificações automatizadas
 
@@ -6,7 +6,14 @@
 - JSON válido em `manifest.webmanifest`.
 - IDs HTML usados pelo JavaScript presentes e sem duplicidade.
 - Referências do service worker existentes no pacote.
-- Cache identificado como `copiloto-financeiro-v4.5.0`.
+- Cache identificado como `copiloto-financeiro-v4.6.0`.
+- QR SVG/data URI do Supabase, chave manual e URI otpauth validados.
+- Enrollment, challenge e verify validados com endpoints e parâmetros.
+- Primeiro acesso AAL1 sem fator e login com fator existente validados.
+- Persistência/reuso da sessão AAL2 e novo challenge após logout validados.
+- Step-up AAL2 executa a ação pendente somente depois da verificação.
+- Migração 4.6 validada: tabelas comuns em AAL1/AAL2 e `import_mappings` em AAL2.
+- Ausência de gerador TOTP local validada.
 - Registro, score, prioridade, estado desconhecido e ambiguidade de adaptadores validados.
 - Adaptadores Bradesco, delimitado e textual validados.
 - Mapeador tabular e de linhas validado com prévia e campos obrigatórios.

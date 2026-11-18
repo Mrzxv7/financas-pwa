@@ -16,7 +16,7 @@ PostgreSQL + RLS (auth.uid() = user_id AND aal = aal2)
 
 O GitHub Pages hospeda a interface. Os dados sincronizados ficam no PostgreSQL do Supabase; uma cópia de trabalho e a fila offline ficam no navegador do usuário.
 
-## Controles da versão 4.5.0
+## Controles da versão 4.6.0
 
 ### CAPTCHA
 
@@ -100,7 +100,7 @@ O isolamento efetivo está no banco. A interface também impede a abertura da á
 ## Operação segura
 
 1. Execute e verifique as duas migrações SQL.
-2. Mantenha `captchaRequired` e `mfaRequired` como `true` em produção.
+2. Mantenha `captchaRequired`, `mfaOptional` e `sensitiveActionsRequireAal2` como `true` em produção.
 3. Restrinja administradores do Supabase, Cloudflare e GitHub.
 4. Revise logs de autenticação, falhas MFA, rate limits e usuários.
 5. Teste RLS com duas contas e com um JWT AAL1.
@@ -136,3 +136,15 @@ O isolamento efetivo está no banco. A interface também impede a abertura da á
 - Período fixo não é salvo para reutilização, reduzindo o risco de lançar em mês antigo.
 - `import_mappings` usa RLS por usuário e exige AAL2.
 - Scripts do framework são estáticos do mesmo domínio e entram no service worker.
+
+## MFA opcional e step-up 4.6
+
+- Funções comuns usam AAL1 ou AAL2, sempre limitadas a `user_id = auth.uid()`.
+- `import_mappings` continua protegido por AAL2 no banco.
+- Backup completo, restauração, limpeza total e remoção de fator exigem step-up no frontend.
+- Usuários com TOTP cadastrado precisam verificar o código após novo login.
+- JWT AAL2 é mantido enquanto a sessão for válida; não há solicitação por tela.
+- O QR e a URI vêm do enrollment Supabase; a PWA não gera códigos TOTP.
+- A URI de fallback contém apenas os parâmetros padrão do TOTP e a chave retornada pelo Supabase.
+- Segredo e URI não são persistidos pelo app nem enviados por e-mail.
+- SMS/telefone permanece desativado até existir integração oficial com o Supabase.

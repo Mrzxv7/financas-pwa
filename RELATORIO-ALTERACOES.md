@@ -1,4 +1,4 @@
-# Relatório de alterações — 4.5.0
+# Relatório de alterações — 4.6.0
 
 ## Objetivo
 
@@ -44,7 +44,7 @@ Ler corretamente o modelo de fatura aberta do Bradesco sem remover a proteção 
 
 ### PWA e documentação
 
-- Cache atualizado para `copiloto-financeiro-v4.5.0`.
+- Cache atualizado para `copiloto-financeiro-v4.6.0`.
 - `security-config.js` incluído no cache estático.
 - Script Turnstile continua fora do cache do service worker.
 - Layout responsivo para CAPTCHA e QR Code.
@@ -100,3 +100,16 @@ Ler corretamente o modelo de fatura aberta do Bradesco sem remover a proteção 
 - Sincronização dos mapeamentos em `import_mappings` com RLS AAL2.
 - Scripts do framework incluídos no cache offline 4.5.0.
 - Contrato de extensão documentado em `BANK-ADAPTER-CONTRACT.md`.
+
+## Evolução 4.6 - MFA opcional e step-up
+
+- QR Code Supabase TOTP renderizado a partir de SVG, data URI, URL ou base64.
+- Chave manual e URI otpauth com botões copiar.
+- Instruções para qualquer aplicativo TOTP e ciclo de 30 segundos.
+- Primeiro acesso em AAL1 sem obrigar enrollment.
+- Lembrete e ativação posterior em Ajustes > Segurança.
+- Challenge após novo login para usuários com TOTP cadastrado.
+- Sessão AAL2 reutilizada enquanto válida.
+- Step-up guiado para mapeamentos reutilizáveis, backups, limpeza e remoção de fator.
+- Interface futura de telefone/SMS desativada, sem simulação de códigos.
+- Nova migração `supabase-migration-v4.6-optional-mfa.sql`.

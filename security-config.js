@@ -1,5 +1,5 @@
 /*
- * CONFIGURAÇÃO PÚBLICA DE SEGURANÇA — COPILOTO FINANCEIRO 4.5.0
+ * CONFIGURAÇÃO PÚBLICA DE SEGURANÇA — COPILOTO FINANCEIRO 4.6.0
  *
  * A Site Key do Cloudflare Turnstile é pública e própria para o navegador.
  * A Secret Key do Turnstile permanece somente no Supabase Authentication.
@@ -8,5 +8,7 @@
 window.APP_SECURITY_CONFIG = Object.freeze({
   turnstileSiteKey: "0x4AAAAAAGG8KpDfQB5IhLrJ",
   captchaRequired: true,
-  mfaRequired: true
+  mfaOptional: true,
+  sensitiveActionsRequireAal2: true,
+  phoneMfaEnabled: false
 });

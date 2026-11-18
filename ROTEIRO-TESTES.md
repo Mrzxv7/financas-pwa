@@ -1,4 +1,4 @@
-# Roteiro de validação — versão 4.5.0
+# Roteiro de validação — versão 4.6.0
 
 ## 1. Configuração estática
 
@@ -134,3 +134,20 @@ Validar pelo menos em 320 × 568, 390 × 844 e 430 × 932:
 10. Teste dois adaptadores com score próximo; o mapeador deve ser usado.
 11. Confirme o mapeamento sincronizado no segundo dispositivo.
 12. Desconecte a internet e confirme o uso do mapeamento já armazenado localmente.
+
+## 14. MFA opcional e step-up AAL2
+
+1. Execute `supabase-migration-v4.6-optional-mfa.sql`.
+2. Entre com uma conta sem TOTP e confirme acesso ao app em AAL1.
+3. Abra Ajustes > Segurança e inicie a ativação.
+4. Confirme QR, chave manual e URI otpauth.
+5. Teste copiar chave e copiar URI.
+6. Cadastre em qualquer aplicativo TOTP e confirme que o código muda a cada 30 segundos.
+7. Digite código incorreto e depois correto.
+8. Navegue por várias telas e confirme que o código não é pedido novamente.
+9. Saia e entre novamente; o código deve ser solicitado após a senha.
+10. Em AAL1 sem fator, tente salvar um mapeamento reutilizável; o enrollment deve abrir.
+11. Em AAL1 com fator, tente ação sensível; o challenge deve abrir.
+12. Cancele o enrollment e confirme retorno ao app sem fator incompleto.
+13. Remova o fator em sessão AAL2 e valide o próximo login.
+14. Confirme que a área SMS está desativada e não envia/simula códigos.

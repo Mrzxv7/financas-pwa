@@ -1,6 +1,24 @@
-# Copiloto Financeiro 4.5.0 — adaptadores bancários e mapeador
+# Copiloto Financeiro 4.6.0 — MFA opcional e step-up AAL2
 
-PWA financeira pessoal com Supabase, conciliação verificável, regras versionadas, fluxo de caixa, recuperação de senha, **MFA TOTP obrigatório** e **CAPTCHA Cloudflare Turnstile**.
+PWA financeira pessoal com Supabase, conciliação verificável, regras versionadas, fluxo de caixa, recuperação de senha, **MFA TOTP opcional com step-up AAL2** e **CAPTCHA Cloudflare Turnstile**.
+
+## MFA para pessoas comuns
+
+- No primeiro acesso, o usuário pode continuar em AAL1 sem cadastrar TOTP.
+- A tela Ajustes > Segurança mantém um lembrete e o botão **Ativar MFA**.
+- O QR Code SVG/data URI retornado pelo Supabase é renderizado diretamente.
+- A chave manual e a URI `otpauth://` aparecem separadamente, cada uma com botão copiar.
+- Qualquer aplicativo compatível com TOTP pode ser usado; o código muda a cada 30 segundos.
+- A PWA não contém gerador TOTP, não simula códigos e não envia o segredo por e-mail.
+- Uma área desativada deixa a interface preparada para futuro fator oficial de telefone/SMS do Supabase.
+
+## AAL1 e AAL2
+
+- AAL1: Dashboard, Lista, lançamentos, importação, conciliação, regras, fluxo de caixa, contas e Oportunidades.
+- AAL2: salvar/sincronizar mapeamentos bancários reutilizáveis, exportar/restaurar backup, apagar todos os dados e remover fatores MFA.
+- Quando uma ação sensível é iniciada em AAL1, o app abre um fluxo guiado de ativação ou verificação.
+- Se o usuário já possui TOTP, um novo login solicita o código.
+- Uma sessão AAL2 válida é reutilizada; o código não é solicitado a cada tela.
 
 ## Framework de adaptadores
 
@@ -23,7 +41,7 @@ PWA financeira pessoal com Supabase, conciliação verificável, regras versiona
 ## Configuração de segurança já incorporada
 
 - A Site Key pública `0x4AAAAAAGG8KpDfQB5IhLrJ` já está configurada em `security-config.js`.
-- `captchaRequired` e `mfaRequired` permanecem ativos.
+- `captchaRequired` permanece ativo; `mfaOptional` e `sensitiveActionsRequireAal2` controlam o fluxo MFA 4.6.
 - O Supabase já foi configurado em **Authentication → Attack Protection** com o provedor **Turnstile by Cloudflare** e a Captcha secret.
 - Nenhuma Secret Key do Turnstile, `service_role`, senha de banco ou credencial administrativa está presente no pacote.
 - Uma política de segurança de conteúdo restringe scripts, frames e conexões aos domínios necessários do próprio app, Supabase, Cloudflare Turnstile e aos ativos versionados do OCR.
@@ -64,12 +82,12 @@ Nesses casos, o app não cria âncora nem ajuste automaticamente e informa a nec
 ## Publicação no GitHub Pages
 
 1. Extraia o ZIP.
-2. Abra a pasta `financas-pwa-4.5.0-adapters-mapper`.
+2. Abra a pasta `financas-pwa-4.6.0-optional-mfa`.
 3. Envie **todo o conteúdo interno da pasta** para a raiz do repositório `financas-pwa`.
 4. Substitua os arquivos existentes, incluindo `security-config.js`, `app.js`, `index.html`, `styles.css`, `sw.js` e a pasta `vendor`.
 5. Não envie o próprio ZIP para a raiz do site.
 6. Aguarde o GitHub Pages concluir o deploy.
-7. No iPhone, feche totalmente a PWA instalada e abra novamente. O cache `copiloto-financeiro-v4.5.0` força a atualização dos arquivos estáticos.
+7. No iPhone, feche totalmente a PWA instalada e abra novamente. O cache `copiloto-financeiro-v4.6.0` força a atualização dos arquivos estáticos.
 
 ## Banco e MFA
 
@@ -78,6 +96,7 @@ Nesses casos, o app não cria âncora nem ajuste automaticamente e informa a nec
 - **Antes de testar a importação 4.3**, execute `supabase-migration-v4.3-opening-balance.sql` uma vez. Ela adiciona somente metadados de conciliação e a proteção de unicidade do saldo consolidado; não apaga dados.
 - Depois, execute `supabase-migration-v4.4-generic-opening-balance.sql`. Ela adiciona a identidade genérica de conta, parser e evidência, preservando a compatibilidade com `card_key` da 4.3.
 - Execute `supabase-migration-v4.5-adapters-mapper.sql` para criar os mapeamentos sincronizados com RLS AAL2.
+- Execute por último `supabase-migration-v4.6-optional-mfa.sql`. Ela libera as tabelas de uso comum para AAL1/AAL2 e mantém `import_mappings` em AAL2.
 - No primeiro login de uma conta sem fator, o app mostra o QR Code para cadastro no Microsoft Authenticator, Google Authenticator, 1Password ou outro aplicativo TOTP compatível.
 - Contas com MFA já cadastrado precisam informar o código de seis dígitos antes de abrir os dados financeiros.
 
@@ -95,9 +114,12 @@ Nesses casos, o app não cria âncora nem ajuste automaticamente e informa a nec
 10. Marque o ajuste opcional e confirme que somente a diferença não explicada entra no mês anterior como saldo consolidado.
 11. Repita com CSV e TXT que tragam campo/rótulo explícito de saldo de abertura.
 12. Teste um arquivo com apenas “saldo disponível”: ele não pode virar `opening_balance`.
-13. Importe um arquivo com cabeçalhos desconhecidos e conclua o mapeamento manual.
-14. Salve o mapeamento e teste outro arquivo com a mesma estrutura.
-15. Confira Lista, Dashboard, qualidade de detalhamento, Oportunidades e Conciliação.
+13. Entre com uma conta sem TOTP, pule a ativação e teste as funções comuns em AAL1.
+14. Tente salvar um mapeamento: o fluxo guiado de MFA deve abrir.
+15. Teste QR, chave manual, URI otpauth, código incorreto e código correto.
+16. Saia e entre novamente; contas com TOTP devem pedir o código após a senha.
+17. Navegue entre telas e confirme que a sessão AAL2 não pede o código novamente.
+18. Confira Lista, Dashboard, adaptadores, mapeador, Oportunidades e Conciliação.
 
 ## Fluxos de segurança
 
@@ -141,6 +163,7 @@ supabase-migration-v4.2-mfa.sql
 supabase-migration-v4.3-opening-balance.sql
 supabase-migration-v4.4-generic-opening-balance.sql
 supabase-migration-v4.5-adapters-mapper.sql
+supabase-migration-v4.6-optional-mfa.sql
 SECURITY.md
 ROTEIRO-TESTES.md
 VALIDACAO.md
