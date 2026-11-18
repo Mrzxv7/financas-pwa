@@ -30,6 +30,9 @@ Todas as tabelas têm RLS habilitado. As políticas permitem selecionar, inserir
 - A senha é enviada diretamente ao Supabase Auth e não é gravada pelo app.
 - O app guarda sessão/refresh token no armazenamento local para manter o login. Isso é comum em uma PWA estática, mas exige proteção do dispositivo.
 - Recomenda-se senha exclusiva, confirmação de e-mail e, se habilitado no projeto, MFA.
+- A recuperação usa um link de validade limitada emitido pelo Supabase Auth. O token recebido no redirecionamento é removido imediatamente da barra de endereço, mantido somente em memória durante a troca e não entra no cache do service worker.
+- A resposta ao pedido de recuperação não confirma se o e-mail existe, reduzindo enumeração de contas.
+- A URL publicada deve permanecer na lista de redirecionamentos permitidos do Supabase; não autorize domínios curinga desnecessários.
 
 ## Dados locais e modo offline
 

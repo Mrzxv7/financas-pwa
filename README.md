@@ -1,4 +1,4 @@
-# Copiloto Financeiro 4.0
+# Copiloto Financeiro 4.1
 
 PWA financeira pessoal com Supabase, conciliação verificável, categorização versionada, fluxo de caixa com cenários e oportunidades baseadas em histórico.
 
@@ -44,7 +44,7 @@ Após o deploy:
 
 ## Recursos
 
-- Entrar e criar usuário pelo Supabase Auth.
+- Entrar, criar usuário e recuperar senha pelo Supabase Auth.
 - Sincronização PC/celular e fila offline.
 - Dashboard, Lista, importação PDF/CSV/TXT e PWA.
 - Hash SHA-256, lotes e ORIGINAL × REGISTRO.
@@ -53,6 +53,16 @@ Após o deploy:
 - Cenários de receita/despesa/categoria.
 - Oportunidades por comparação de três meses.
 - Backup JSON completo.
+
+## Recuperação de senha
+
+1. Na tela de login, toque em **Esqueci minha senha**.
+2. Informe o e-mail da conta e envie a solicitação.
+3. Abra o link recebido no e-mail.
+4. Defina e confirme uma nova senha com pelo menos 8 caracteres.
+5. Entre novamente com a nova senha.
+
+O aplicativo usa como retorno a própria pasta publicada. No Supabase, confirme em **Authentication → URL Configuration** que a URL do GitHub Pages está cadastrada em **Redirect URLs** (por exemplo, `https://mrzxv7.github.io/financas-pwa/`). Não é necessária alteração no banco de dados ou na migração SQL v4.
 
 ## Teste local
 

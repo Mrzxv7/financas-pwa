@@ -178,7 +178,7 @@ select { appearance: auto; }
 @media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
 
 
-/* Copiloto Financeiro 4.0 */
+/* Copiloto Financeiro 4.1 */
 html, body { max-width: 100%; overflow-x: hidden; }
 .auth-screen { min-height: 100dvh; display: grid; align-content: center; gap: 20px; width: min(100% - 28px, 480px); margin: auto; padding: max(28px, env(safe-area-inset-top)) 0 max(28px, env(safe-area-inset-bottom)); }
 .auth-brand { text-align: center; }
@@ -189,6 +189,10 @@ html, body { max-width: 100%; overflow-x: hidden; }
 .auth-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; padding: 5px; margin-bottom: 18px; border-radius: 15px; background: #07131f; }
 .auth-card label { display: grid; gap: 7px; margin-bottom: 14px; color: var(--muted); font-size: .78rem; font-weight: 700; }
 .auth-card .button { width: 100%; }
+.auth-secondary-actions { display: flex; justify-content: center; min-height: 30px; margin-top: 10px; }
+.auth-link { min-height: 34px; padding: 5px 8px; border-radius: 8px; font-size: .78rem; }
+.auth-link:hover { color: var(--text); background: rgba(56,189,248,.08); }
+.auth-link:disabled { opacity: .6; cursor: wait; }
 .top-actions { display: flex; align-items: center; gap: 7px; min-width: 0; }
 .sync-pill { display: inline-flex; max-width: 140px; align-items: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 6px 9px; border-radius: 999px; color: var(--muted); background: var(--surface); border: 1px solid var(--line); font-size: .66rem; font-weight: 800; }
 .sync-pill.ok { color: var(--income); }.sync-pill.syncing { color: var(--primary-2); }.sync-pill.pending { color: var(--warning); }.sync-pill.offline { color: var(--expense); }

@@ -69,3 +69,18 @@
 - Cenários mostram todas as premissas.
 - Lista e Dashboard mudam imediatamente após importação.
 - Fila offline sincroniza ao voltar a rede.
+
+
+## Recuperação de senha — versão 4.1
+
+1. Na tela **Entrar**, toque em **Esqueci minha senha**.
+2. Teste e-mail vazio e formato inválido; o envio deve ser bloqueado.
+3. Informe um e-mail cadastrado; a mensagem deve orientar a consultar a caixa de entrada.
+4. Abra o link recebido no mesmo navegador e em outro dispositivo.
+5. Confirme que a PWA mostra **Nova senha** e **Confirmar senha**.
+6. Teste senha menor que 8 caracteres e confirmações diferentes; ambas devem ser bloqueadas.
+7. Salve uma senha válida e confirme a mensagem de sucesso.
+8. Entre com a nova senha; a senha anterior não deve autenticar.
+9. Reabra o mesmo link; ele deve ser rejeitado como expirado ou utilizado.
+10. Confirme que a URL final não mantém `access_token`, `refresh_token` ou outros tokens.
+11. Confirme que dados financeiros, fila offline e políticas RLS não foram alterados.

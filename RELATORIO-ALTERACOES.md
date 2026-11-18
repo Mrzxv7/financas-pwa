@@ -1,3 +1,15 @@
+# Alterações da versão 4.1 — recuperação de senha
+
+- Link **Esqueci minha senha** na tela de entrada.
+- Solicitação de e-mail pelo endpoint seguro do Supabase Auth.
+- Redirecionamento para a própria PWA e remoção imediata dos tokens da URL.
+- Tela de definição e confirmação da nova senha.
+- Encerramento da sessão temporária de recuperação após a troca.
+- Mensagem neutra no envio do e-mail para reduzir enumeração de contas.
+- Mensagens amigáveis para link inválido, expirado, limite de tentativas e credenciais incorretas.
+- Cache PWA atualizado para 4.1.0.
+- Nenhuma alteração de tabela, RLS ou migração SQL.
+
 # Relatório de alterações — Copiloto Financeiro 4.0
 
 ## Objetivo

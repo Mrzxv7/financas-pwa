@@ -19,17 +19,21 @@
   <section id="authScreen" class="auth-screen" aria-labelledby="authTitle">
     <div class="auth-brand"><span class="brand-mark">◆</span><p class="eyebrow">SEUS DADOS, SUAS DECISÕES</p><h1 id="authTitle">Copiloto Financeiro</h1><p>Concilie, categorize e planeje com dados verificáveis.</p></div>
     <div class="card auth-card">
-      <div class="auth-tabs" role="tablist">
-        <button id="loginTab" class="tab active" type="button">Entrar</button>
-        <button id="signupTab" class="tab" type="button">Criar usuário</button>
+      <div id="authTabs" class="auth-tabs" role="tablist" aria-label="Acesso à conta">
+        <button id="loginTab" class="tab active" type="button" role="tab" aria-selected="true">Entrar</button>
+        <button id="signupTab" class="tab" type="button" role="tab" aria-selected="false">Criar usuário</button>
       </div>
       <form id="authForm" novalidate>
         <label id="nameField" class="hidden">Nome<input id="authName" type="text" autocomplete="name" maxlength="80" placeholder="Como quer ser chamado"></label>
-        <label>E-mail<input id="authEmail" type="email" autocomplete="email" required placeholder="voce@exemplo.com"></label>
-        <label>Senha<input id="authPassword" type="password" autocomplete="current-password" minlength="8" required placeholder="Mínimo de 8 caracteres"></label>
+        <label id="emailField">E-mail<input id="authEmail" type="email" autocomplete="email" inputmode="email" required placeholder="voce@exemplo.com"></label>
+        <label id="passwordField"><span id="passwordLabel">Senha</span><input id="authPassword" type="password" autocomplete="current-password" minlength="8" required placeholder="Mínimo de 8 caracteres"></label>
         <label id="confirmField" class="hidden">Confirmar senha<input id="authPasswordConfirm" type="password" autocomplete="new-password" minlength="8" placeholder="Repita a senha"></label>
         <button id="authSubmit" class="button primary" type="submit">Entrar</button>
-        <p id="authHelp" class="helper-text">Use a mesma conta no PC e no celular para sincronizar.</p>
+        <div class="auth-secondary-actions">
+          <button id="forgotPasswordBtn" class="text-button auth-link" type="button">Esqueci minha senha</button>
+          <button id="authBackBtn" class="text-button auth-link hidden" type="button">Voltar para entrar</button>
+        </div>
+        <p id="authHelp" class="helper-text" aria-live="polite">Use a mesma conta no PC e no celular para sincronizar.</p>
       </form>
     </div>
     <p class="auth-security">🔒 Autenticação Supabase • conexão HTTPS • isolamento por usuário (RLS)</p>
@@ -107,7 +111,7 @@
 
         <div id="plan-bills" class="plan-panel"><form id="billForm" class="card form-card compact-form"><div class="card-title-row"><div><p class="eyebrow">COMPROMETIDO</p><h3>Nova conta</h3></div></div><label>Descrição<input id="billDescription" required placeholder="Ex.: Energia"></label><div class="form-grid"><label>Valor<input id="billAmount" inputmode="decimal" required></label><label>Vencimento<input id="billDue" type="date" required></label></div><button class="button primary" type="submit">Adicionar conta</button></form><div id="billSummary" class="list-summary"></div><div id="billList" class="transaction-list"></div></div>
 
-        <div id="plan-settings" class="plan-panel"><form id="settingsForm" class="card form-card compact-form"><div class="card-title-row"><div><p class="eyebrow">PREFERÊNCIAS</p><h3>Orçamento mensal</h3></div></div><label>Valor planejado<input id="monthlyBudget" inputmode="decimal" placeholder="R$ 0,00"></label><button class="button primary" type="submit">Salvar orçamento</button></form><article class="card"><div class="card-title-row"><div><p class="eyebrow">SEUS DADOS</p><h3>Portabilidade</h3></div></div><p class="muted">Exporte um pacote completo com movimentações, lotes, regras, cenários, contas e trilha de auditoria.</p><div class="stack-actions"><button id="exportBtn" class="button secondary" type="button">Exportar backup JSON</button><label class="button secondary file-button">Restaurar backup<input id="restoreFile" type="file" accept="application/json,.json"></label><button id="logoutBtn" class="button secondary" type="button">Sair da conta</button><button id="clearBtn" class="button danger" type="button">Apagar meus dados</button></div></article><article class="card about-card"><strong>Copiloto Financeiro</strong><span>Versão 4.0 • auditável • Supabase • PWA</span></article></div>
+        <div id="plan-settings" class="plan-panel"><form id="settingsForm" class="card form-card compact-form"><div class="card-title-row"><div><p class="eyebrow">PREFERÊNCIAS</p><h3>Orçamento mensal</h3></div></div><label>Valor planejado<input id="monthlyBudget" inputmode="decimal" placeholder="R$ 0,00"></label><button class="button primary" type="submit">Salvar orçamento</button></form><article class="card"><div class="card-title-row"><div><p class="eyebrow">SEUS DADOS</p><h3>Portabilidade</h3></div></div><p class="muted">Exporte um pacote completo com movimentações, lotes, regras, cenários, contas e trilha de auditoria.</p><div class="stack-actions"><button id="exportBtn" class="button secondary" type="button">Exportar backup JSON</button><label class="button secondary file-button">Restaurar backup<input id="restoreFile" type="file" accept="application/json,.json"></label><button id="logoutBtn" class="button secondary" type="button">Sair da conta</button><button id="clearBtn" class="button danger" type="button">Apagar meus dados</button></div></article><article class="card about-card"><strong>Copiloto Financeiro</strong><span>Versão 4.1 • recuperação de senha • Supabase • PWA</span></article></div>
       </section>
     </main>
 
