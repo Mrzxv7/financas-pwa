@@ -231,3 +231,79 @@ table { width: 100%; min-width: 780px; border-collapse: collapse; font-size: .76
   .preview-meta { grid-template-columns: 1fr; }
 }
 @media (min-width: 900px) { .plan-panel > .form-card { max-width: 760px; }.batch-list { grid-template-columns: repeat(2,minmax(0,1fr)); }.batch-card { margin: 0; } }
+
+
+/* Copiloto Financeiro 4.2 — MFA TOTP e Cloudflare Turnstile */
+.captcha-section { display: grid; justify-items: center; gap: 7px; width: 100%; margin: 2px 0 14px; overflow: hidden; }
+.captcha-widget { width: 100%; min-height: 65px; }
+.captcha-widget > div, .captcha-widget iframe { max-width: 100% !important; }
+.captcha-status { width: 100%; margin: 0; text-align: center; overflow-wrap: anywhere; }
+.captcha-status.success { color: var(--income); }
+.captcha-status.error { color: var(--expense); }
+.auth-card .button:disabled { opacity: .55; cursor: not-allowed; filter: saturate(.45); }
+.mfa-panel { display: grid; gap: 15px; }
+.mfa-heading { display: flex; align-items: center; gap: 12px; }
+.mfa-heading h2 { margin: 3px 0 0; font-size: 1.35rem; }
+.mfa-lock { display: grid; flex: 0 0 42px; height: 42px; place-items: center; border-radius: 14px; color: #05261d; background: var(--income); font-weight: 900; }
+.mfa-enrollment { display: grid; justify-items: center; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 15px; background: #07131f; }
+.mfa-qr { display: block; width: min(230px,100%); aspect-ratio: 1; padding: 9px; border-radius: 13px; background: #fff; }
+.mfa-secret { display: block; width: 100%; padding: 11px; border-radius: 10px; color: var(--primary-2); background: rgba(56,189,248,.08); text-align: center; letter-spacing: .08em; overflow-wrap: anywhere; user-select: all; }
+#mfaForm { display: grid; gap: 10px; }
+#mfaCode { text-align: center; letter-spacing: .35em; font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.security-card { border-color: rgba(52,211,153,.28); }
+.security-state { padding: 10px 12px; border-radius: 11px; color: var(--income); background: rgba(52,211,153,.08); font-size: .78rem; font-weight: 800; }
+@media (max-width: 360px) {
+  .auth-screen { width: min(100% - 16px,480px); }
+  .auth-card { padding: 14px; }
+  .mfa-enrollment { padding: 10px; }
+}
+
+
+/* Copiloto Financeiro 4.3 - saldo anterior e qualidade de detalhamento */
+.metric-icon.detailed { background: rgba(56,189,248,.15); color: var(--primary-2); }
+.metric-icon.consolidated { background: rgba(251,191,36,.14); color: var(--warning); }
+.detail-quality-card { border-color: rgba(56,189,248,.24); }
+.detail-quality-card .card-title-row > strong { color: var(--primary-2); font-size: 1.25rem; }
+.statement-reconciliation { display: grid; gap: 10px; margin-bottom: 14px; }
+.statement-card { padding: 14px; border: 1px solid rgba(56,189,248,.28); border-radius: 16px; background: rgba(7,19,31,.72); }
+.statement-card h4 { margin: 0; font-size: 1rem; }
+.statement-card small { color: var(--muted); line-height: 1.45; }
+.anchor-grid, .reconciliation-anchor { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+.anchor-grid span, .reconciliation-anchor > div { display: grid; gap: 5px; min-width: 0; padding: 10px; border-radius: 11px; color: var(--muted); background: rgba(145,165,183,.07); font-size: .68rem; }
+.anchor-grid strong, .reconciliation-anchor strong { color: var(--text); font-size: .9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.equation-row { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: center; margin-top: 10px; padding: 10px; border-radius: 11px; background: rgba(14,165,233,.07); font-size: .72rem; }
+.equation-row span { color: var(--muted); overflow-wrap: anywhere; }
+.equation-row em { grid-column: 1/-1; font-style: normal; font-size: .68rem; }
+.detail-quality { display: grid; gap: 7px; margin-top: 12px; }
+.detail-quality > div:first-child { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: .72rem; }
+.detail-quality > div:first-child strong { color: var(--text); }
+.opening-option { display: grid !important; grid-template-columns: auto 1fr; align-items: flex-start; gap: 10px !important; margin: 13px 0 0 !important; padding: 12px; border: 1px solid rgba(251,191,36,.3); border-radius: 12px; color: var(--text) !important; background: rgba(251,191,36,.06); cursor: pointer; }
+.opening-option input { width: 19px; height: 19px; margin: 1px 0 0; accent-color: var(--warning); }
+.opening-option span { display: grid; gap: 4px; }
+.opening-option small { color: var(--muted); font-weight: 500; }
+.opening-option.disabled { opacity: .68; cursor: default; }
+.pending-note { margin-top: 9px; color: var(--warning); font-size: .7rem; line-height: 1.45; }
+.transaction-item.consolidated { border-color: rgba(251,191,36,.32); background: linear-gradient(145deg,rgba(53,43,20,.42),var(--surface)); }
+.transaction-item.consolidated .transaction-symbol { color: var(--warning); background: rgba(251,191,36,.13); }
+.transaction-item.consolidated .transaction-side > strong { color: var(--warning); }
+.reconciliation-anchor { margin-bottom: 10px; }
+@media (min-width: 720px) { .metric-grid { grid-template-columns: repeat(3,1fr); } .anchor-grid,.reconciliation-anchor { grid-template-columns: repeat(4,minmax(0,1fr)); } }
+@media (max-width: 390px) { .equation-row { grid-template-columns: 1fr; } .equation-row em { grid-column: auto; } }
+
+
+/* Copiloto Financeiro 4.5 - adaptadores e mapeador */
+.mapper-card { border-color: rgba(251,191,36,.38); }
+.mapper-card .card-title-row p.muted { margin-top: 6px; font-size: .75rem; overflow-wrap: anywhere; }
+.mapper-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; margin: 14px 0; }
+.mapper-fields label { display: grid; gap: 6px; color: var(--muted); font-size: .72rem; font-weight: 700; }
+.mapper-fields select { padding: 10px; }
+.mapper-preview { width: 100%; overflow: auto; margin: 14px 0; border: 1px solid var(--line); border-radius: 13px; }
+.mapper-preview table { min-width: 640px; }
+.mapper-preview td { max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+.mapper-preview .mapped-cell { color: var(--primary-2); background: rgba(14,165,233,.06); }
+.mapper-errors { display: grid; gap: 6px; margin-top: 12px; }
+.mapper-error { padding: 9px 11px; border-radius: 10px; color: #fec0ca; background: rgba(251,113,133,.09); font-size: .72rem; }
+.mapper-warning { padding: 9px 11px; border-radius: 10px; color: var(--warning); background: rgba(251,191,36,.08); font-size: .72rem; }
+.adapter-note { color: var(--primary-2); font-size: .68rem; }
+@media (min-width: 720px) { .mapper-card { max-width: 920px; margin-left: auto; margin-right: auto; } .mapper-fields { grid-template-columns: repeat(3,minmax(0,1fr)); } }
+@media (max-width: 480px) { .mapper-fields { grid-template-columns: 1fr; } }

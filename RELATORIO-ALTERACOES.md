@@ -1,108 +1,102 @@
-# Alterações da versão 4.1 — recuperação de senha
-
-- Link **Esqueci minha senha** na tela de entrada.
-- Solicitação de e-mail pelo endpoint seguro do Supabase Auth.
-- Redirecionamento para a própria PWA e remoção imediata dos tokens da URL.
-- Tela de definição e confirmação da nova senha.
-- Encerramento da sessão temporária de recuperação após a troca.
-- Mensagem neutra no envio do e-mail para reduzir enumeração de contas.
-- Mensagens amigáveis para link inválido, expirado, limite de tentativas e credenciais incorretas.
-- Cache PWA atualizado para 4.1.0.
-- Nenhuma alteração de tabela, RLS ou migração SQL.
-
-# Relatório de alterações — Copiloto Financeiro 4.0
+# Relatório de alterações — 4.5.0
 
 ## Objetivo
 
-Esta versão implementa juntas as três fundações solicitadas: **conciliação bancária verificável**, **regras de categorização explícitas e versionadas** e **fluxo de caixa realizado/comprometido/projetado com cenários editáveis**. Também inclui **criação de usuário na tela de acesso**.
+Ler corretamente o modelo de fatura aberta do Bradesco sem remover a proteção contra automação, MFA, recuperação de senha, sincronização, modo offline ou recursos financeiros consolidados na versão 4.2.1.
 
-## 1. Conciliação bancária confiável e verificável
+## Importação Bradesco 4.2.2
 
-- Cada arquivo ou texto importado recebe um **SHA-256** calculado localmente.
-- Reimportação do mesmo arquivo é bloqueada pelo hash e também por restrição única no banco.
-- Cada lote registra: arquivo, hash, data, itens encontrados, importados, duplicados, erros e status.
-- Cada lançamento importado guarda: descrição e valor originais, arquivo, hash, linha, lote e estado da conciliação.
-- A prévia mostra **ORIGINAL × REGISTRO** antes da confirmação.
-- A tela `Planejar → Conciliação` mostra taxa conciliada, totais e comparação linha a linha.
-- A deduplicação verifica primeiro `hash + linha`; como segunda defesa, verifica data + tipo + valor + descrição normalizada.
-- A importação confirmada atualiza imediatamente **Lista**, **Dashboard**, **Fluxo** e **Oportunidades**.
+- Detecta PDFs sem camada de texto e aciona OCR no navegador.
+- Renderiza uma página por vez e ignora páginas em branco para reduzir memória e tempo.
+- Reconhece datas `dd/mm`, `ddmm` e `dd/` quando o OCR perde o mês; neste último caso, usa o mês/ano do cabeçalho do extrato.
+- Separa data, descrição e o último valor em reais da linha do modelo Bradesco.
+- Exclui `SALDO ANTERIOR`, `Total para` e demais linhas de resumo.
+- Mantém hash, detecção de duplicidade, prévia, edição, seleção e confirmação antes da gravação.
+- Preserva importadores PDF com texto, CSV e TXT.
 
-## 2. Regras de categorização explícitas e versionadas
+## Implementado
 
-- Nova tela `Planejar → Regras`.
-- Tipos de correspondência: contém, começa com e igual a.
-- Prioridade configurável.
-- Cada alteração gera uma **nova versão imutável** do conteúdo da regra; a versão anterior deixa de ser corrente, mas permanece no banco.
-- Lançamentos registram a origem da categoria: `manual`, `rule`, `system:v1` ou migração.
-- Quando uma regra é aplicada, a movimentação registra o ID e a versão exata usados.
-- Ao corrigir manualmente uma categoria, o app pode perguntar se deve criar uma regra para o futuro.
-- A Lista identifica se a categoria foi manual, do sistema ou de uma regra versionada.
+### Cloudflare Turnstile
 
-## 3. Fluxo de caixa e cenários
+- Widget explícito na tela de autenticação.
+- CAPTCHA nos fluxos de login, criação de usuário e recuperação.
+- Token enviado ao Supabase em `gotrue_meta_security.captcha_token`.
+- Reset do desafio após cada tentativa.
+- Bloqueio do botão quando a configuração está ausente, o widget não carregou ou o token expirou.
+- Configuração isolada em `security-config.js`, sem Secret Key no frontend.
 
-- Separação visível entre:
-  - **realizado**: lançamentos já ocorridos;
-  - **comprometido**: contas pendentes no mês do vencimento;
-  - **projetado adicional**: média histórica descontando o que já foi realizado.
-- Cenários editáveis com:
-  - variação de receita;
-  - redução geral de despesas;
-  - redução adicional em uma categoria;
-  - histórico de 1, 3, 6 ou 12 meses;
-  - horizonte de 3, 6 ou 12 meses.
-- Todas as premissas aparecem abaixo da projeção.
-- O cálculo evita dupla contagem: o projetado adicional subtrai valores já realizados.
-- Contas marcadas como pagas deixam de compor o comprometido.
+### MFA TOTP
 
-## 4. Cadastro e autenticação
+- Detecção do nível AAL no JWT.
+- Consulta dos fatores do usuário após a senha.
+- Enrolamento obrigatório para contas sem TOTP verificado.
+- Exibição de QR Code, chave manual e cópia segura.
+- Challenge + verify para ativação e logins futuros.
+- Sessão atualizada com o JWT AAL2 retornado pelo Supabase.
+- Bloqueio da área financeira até a conclusão do segundo fator.
+- Estado MFA visível no diálogo da conta.
 
-- A tela inicial agora alterna entre **Entrar** e **Criar usuário**.
-- Cadastro com nome, e-mail, senha e confirmação.
-- Compatível com confirmação de e-mail do Supabase.
-- Sessão persistente e renovação por refresh token.
-- Mesma conta sincroniza PC e celular.
-- Migração opcional dos dados locais da versão 2 para a conta autenticada.
+### Defesa no banco
 
-## 5. Integrações e funções preservadas
+- Nova migração idempotente `supabase-migration-v4.2-mfa.sql`.
+- Políticas das sete tabelas exigem `user_id = auth.uid()` e `aal = aal2`.
+- Dados existentes não são alterados.
 
-- Supabase Auth e PostgreSQL com RLS.
-- Sincronização PC/celular, fila offline e cache separado por usuário.
-- Atualização ao recuperar conexão, voltar ao app e a cada 90 segundos quando visível.
-- Importação PDF/CSV/TXT e texto colado.
-- PDF.js local, sem CDN em tempo de execução.
-- Lista, Dashboard, Oportunidades, Contas, orçamento e backup JSON.
-- PWA instalável e cache offline do **app shell**.
-- GitHub Pages continua sendo apenas a hospedagem dos arquivos estáticos.
+### PWA e documentação
 
-## 6. Oportunidades
+- Cache atualizado para `copiloto-financeiro-v4.5.0`.
+- `security-config.js` incluído no cache estático.
+- Script Turnstile continua fora do cache do service worker.
+- Layout responsivo para CAPTCHA e QR Code.
+- README, segurança, validação e roteiro de testes atualizados.
 
-- Compara cada categoria do mês com a média dos três meses anteriores com dados.
-- Só mostra uma oportunidade quando a diferença é material.
-- Exibe gasto atual, média, potencial estimado e atalho para os lançamentos.
-- O cálculo é determinístico; não inventa dados nem envia o histórico a um modelo generativo.
+## Integração final do Turnstile
 
-## 7. Segurança aplicada
+- Site Key pública incorporada em `security-config.js`.
+- Provedor e Captcha secret já configurados pelo usuário no Supabase Attack Protection.
+- Secret Key, `service_role` e credenciais administrativas não foram solicitadas nem incluídas.
+- CSP adicionada para limitar scripts, frames e conexões aos domínios necessários.
 
-- Nenhuma `service_role`, senha de banco ou chave secreta foi incluída.
-- A publishable key permanece pública por projeto; o acesso aos dados depende do token do usuário e das políticas RLS.
-- O service worker foi corrigido para **nunca armazenar respostas do Supabase/Auth**.
-- HTML proveniente de dados do usuário é escapado antes de renderizar.
-- Exclusão e operações destrutivas exigem confirmação.
-- O SHA-256 prova igualdade do arquivo, mas não substitui backup nem assinatura digital bancária.
+## Compatibilidade
 
-## 8. Mudanças de banco necessárias
+- Mantidos os dados, tabelas e chaves locais da versão 4.1.
+- Mantidos PDF.js local, importação, fila offline e migração v4. O OCR é acionado apenas para PDF sem texto utilizável.
+- A recuperação de senha continua funcionando e o login posterior exige TOTP.
+- Navegadores precisam de JavaScript, HTTPS e acesso ao domínio do Turnstile para novas autenticações.
 
-Execute `supabase-migration-v4.sql` no SQL Editor antes de publicar o frontend. A migração é idempotente e:
 
-- preserva as quatro tabelas existentes;
-- adiciona colunas de auditoria às movimentações;
-- cria `import_batches`, `category_rules` e `cashflow_scenarios`;
-- cria índices, triggers, RLS e políticas por usuário;
-- mantém/publica as tabelas no Supabase Realtime.
+## Evolução 4.3 - saldo anterior
 
-## 9. Limites conhecidos
+- Saldo anterior capturado como âncora e associado ao mês anterior.
+- Busca de valores já contabilizados do mesmo cartão/período.
+- Residual pendente por padrão; ajuste `opening_balance` somente por decisão do usuário.
+- Proteção local e índice único no banco contra duplicação do ajuste.
+- Reimportação do mesmo arquivo permitida para completar a conciliação, mantendo compras como duplicadas não selecionáveis.
+- Âncoras de saldo, compras, créditos/pagamentos e total com diferença explícita.
+- Dashboard separa despesas detalhadas de saldo consolidado e mostra qualidade percentual.
+- Categorias, regras, maiores despesas e Oportunidades ignoram saldo consolidado.
+- Nova migração aditiva `supabase-migration-v4.3-opening-balance.sql`.
 
-- A leitura de PDF depende de o arquivo conter texto; PDFs apenas escaneados exigiriam OCR, que não foi adicionado para não enviar documentos a terceiros.
-- A projeção é uma estimativa baseada em médias e premissas escolhidas; não é garantia de resultado.
-- O token e o cache local ficam no armazenamento do navegador. Um dispositivo desbloqueado ou comprometido pode expor os dados locais.
-- O frontend não executa sozinho alterações de esquema: a migração SQL é obrigatória uma vez.
+## Evolução 4.4 - conceito genérico
+
+- Contrato comum `opening_balance` para PDF, CSV, TXT e parsers futuros.
+- Bradesco convertido em adaptador específico, sem concentrar a regra de negócio.
+- Detecção somente por rótulo/campo semântico explícito e período seguro.
+- Recusa de saldos disponíveis, atuais, projetados, menções incidentais e múltiplos candidatos.
+- Identidade genérica `accountKey`, com escopo explícito ou restrito à origem.
+- Persistência do parser, evidência, confiança e referência original.
+- Reconciliação e unicidade por usuário/conta/período.
+- Nova migração aditiva `supabase-migration-v4.4-generic-opening-balance.sql`.
+- Contrato para extensões documentado em `PARSER-CONTRACT.md`.
+
+## Evolução 4.5 - adaptadores e mapeador
+
+- Framework `bank-adapters.js` com registro, score, prioridade, ambiguidade e fallback seguro.
+- Bradesco e parsers genéricos registrados como adaptadores independentes.
+- Interface para mapear arquivos desconhecidos sem inserir dados automaticamente.
+- Modos tabela delimitada e linhas sem cabeçalho.
+- Mapeamento de transações, conta, período e âncoras de conciliação.
+- Assinaturas de estrutura e mapeamentos reutilizáveis.
+- Sincronização dos mapeamentos em `import_mappings` com RLS AAL2.
+- Scripts do framework incluídos no cache offline 4.5.0.
+- Contrato de extensão documentado em `BANK-ADAPTER-CONTRACT.md`.

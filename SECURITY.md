@@ -1,90 +1,138 @@
-# Segurança da informação
+# Segurança da informação — versão 4.2
 
 ## Arquitetura
 
 ```text
-GitHub Pages (HTML/CSS/JS/PDF.js)
-          │ HTTPS
-          ▼
-Supabase Auth ── token do usuário
-          │
-          ▼
-PostgreSQL + RLS (user_id = auth.uid())
+GitHub Pages (código estático)
+      │ HTTPS
+      ├── Cloudflare Turnstile (desafio antirobô)
+      │
+      ▼
+Supabase Auth: senha + TOTP → JWT AAL2
+      │
+      ▼
+PostgreSQL + RLS (auth.uid() = user_id AND aal = aal2)
 ```
 
-O GitHub Pages hospeda apenas o código estático. Os dados sincronizados ficam no PostgreSQL do Supabase; uma cópia de trabalho e a fila offline ficam no navegador do usuário.
+O GitHub Pages hospeda a interface. Os dados sincronizados ficam no PostgreSQL do Supabase; uma cópia de trabalho e a fila offline ficam no navegador do usuário.
 
-## Credenciais
+## Controles da versão 4.5.0
 
-- **No frontend:** Project URL e publishable key. São identificadores públicos previstos para aplicações web.
-- **Nunca no frontend:** `service_role`, secret key, senha do banco ou connection string administrativa.
-- A publishable key não concede acesso irrestrito: cada operação usa também o token do usuário autenticado e passa pelas políticas RLS.
+### CAPTCHA
+
+- Cloudflare Turnstile protege login, criação de conta e solicitação de recuperação.
+- A Site Key é pública e pode ficar em `security-config.js`.
+- A Secret Key permanece somente no painel do Supabase.
+- O token do desafio é de uso único, enviado ao Supabase e descartado pela interface após a tentativa.
+- O formulário permanece bloqueado quando o CAPTCHA é obrigatório e a Site Key não foi configurada, o widget não carregou ou o desafio expirou.
+
+### MFA TOTP
+
+- Após a senha, a sessão está em AAL1.
+- Contas sem fator verificado são direcionadas ao cadastro TOTP.
+- Contas com fator ativo precisam informar um código de seis dígitos para elevar a sessão a AAL2.
+- A chave e o QR Code de cadastro ficam apenas em memória durante o enrolamento; não são gravados em `localStorage`.
+- A migração `supabase-migration-v4.2-mfa.sql` exige AAL2 nas políticas RLS das sete tabelas financeiras.
+- A proteção não depende apenas da tela: um token AAL1 não atende às políticas do banco.
+
+## Credenciais e segredos
+
+- **Públicos no frontend:** Project URL, publishable key do Supabase e Site Key do Turnstile.
+- **Proibidos no frontend:** `service_role`, Secret Key do Turnstile, secret key do Supabase, senha do banco e connection string administrativa.
+- A publishable key não contorna Auth nem RLS.
 
 ## Isolamento entre usuários
 
-Todas as tabelas têm RLS habilitado. As políticas permitem selecionar, inserir, alterar e excluir somente linhas cujo `user_id` seja igual a `auth.uid()`. O aplicativo também envia `user_id`, mas a proteção efetiva está no banco, não na interface.
+Cada operação financeira precisa satisfazer simultaneamente:
 
-## Transporte, senha e sessão
+```sql
+auth.uid() = user_id
+and auth.jwt()->>'aal' = 'aal2'
+```
 
-- GitHub Pages e Supabase usam HTTPS.
-- A senha é enviada diretamente ao Supabase Auth e não é gravada pelo app.
-- O app guarda sessão/refresh token no armazenamento local para manter o login. Isso é comum em uma PWA estática, mas exige proteção do dispositivo.
-- Recomenda-se senha exclusiva, confirmação de e-mail e, se habilitado no projeto, MFA.
-- A recuperação usa um link de validade limitada emitido pelo Supabase Auth. O token recebido no redirecionamento é removido imediatamente da barra de endereço, mantido somente em memória durante a troca e não entra no cache do service worker.
-- A resposta ao pedido de recuperação não confirma se o e-mail existe, reduzindo enumeração de contas.
-- A URL publicada deve permanecer na lista de redirecionamentos permitidos do Supabase; não autorize domínios curinga desnecessários.
+O isolamento efetivo está no banco. A interface também impede a abertura da área financeira sem AAL2.
 
-## Dados locais e modo offline
+## Sessão e dispositivo
 
-O cache local contém dados financeiros para permitir abertura rápida e fila offline. Portanto:
+- GitHub Pages, Cloudflare e Supabase usam HTTPS.
+- Senha e TOTP são enviados diretamente aos endpoints de autenticação; o app não os grava.
+- Access token e refresh token ficam em armazenamento local para manter a sessão da PWA.
+- Dados financeiros em cache e fila offline também ficam no navegador.
+- Proteja o dispositivo com PIN/biometria, não use conta em equipamento compartilhado e faça logout antes de descartar um dispositivo.
 
-- bloqueie o celular/PC com PIN ou biometria;
-- não use a conta em dispositivo compartilhado;
-- ao deixar de usar um dispositivo, saia da conta e limpe os dados do navegador;
-- exporte backups e proteja os arquivos exportados.
+## Recuperação de senha e de MFA
 
-O service worker guarda somente arquivos da aplicação do mesmo domínio. Requisições para Supabase/Auth são explicitamente excluídas do cache.
+- A recuperação de senha usa link de validade limitada e CAPTCHA.
+- O token de recuperação é removido da barra de endereço e mantido somente em memória durante a troca.
+- A resposta ao pedido de recuperação é neutra para reduzir enumeração de contas.
+- Não há códigos de recuperação TOTP gerados pelo app. A perda do único autenticador exige remoção administrativa do fator no Supabase; restrinja administradores e registre esse procedimento.
 
-## Importação e auditoria
+## Service worker e terceiros
 
-- O arquivo é lido localmente no navegador.
-- PDF.js está empacotado no projeto; não há CDN ou OCR remoto.
-- SHA-256 é calculado no dispositivo e usado para identificar reimportação.
-- O banco armazena hash e metadados, não o PDF original.
-- SHA-256 demonstra que dois conteúdos são iguais, mas não comprova autenticidade bancária nem impede fraude no arquivo de origem.
+- O service worker guarda somente arquivos estáticos do mesmo domínio.
+- Respostas do Supabase, tokens e dados de autenticação não entram no cache do service worker.
+- O script do Turnstile vem de `challenges.cloudflare.com` e não é armazenado pelo service worker.
+- Quando um PDF não contém texto, o navegador baixa o Tesseract.js 5.1.1 e o idioma português de URLs HTTPS fixadas por versão (`cdn.jsdelivr.net` e `tessdata.projectnaptha.com`). O service worker não armazena recursos de outra origem.
+- O documento não é enviado a esses domínios: somente o código e o modelo de idioma são baixados; o reconhecimento roda no dispositivo.
+- A CSP permite esses dois domínios exclusivamente para o OCR. Atualizações futuras devem revisar a versão e a procedência antes de trocar as URLs.
+- Bloqueadores de conteúdo ou indisponibilidade do Turnstile impedem novas autenticações quando o CAPTCHA está obrigatório; uma sessão AAL2 ainda válida pode abrir o cache local.
 
-## Proteções de interface
+## Importação
 
-- Dados exibidos são escapados para reduzir risco de XSS.
-- Não há uso de `eval`.
-- Exclusão exige confirmação.
-- Regras automáticas são visíveis e cada movimentação registra a versão usada.
-
-## Responsabilidades operacionais
-
-1. Manter RLS habilitado e executar a migração fornecida.
-2. Nunca substituir a publishable key por uma secret key.
-3. Restringir administradores do projeto Supabase e do repositório GitHub.
-4. Habilitar proteção de branch e revisão de alterações no GitHub.
-5. Revisar periodicamente logs do Supabase e usuários autenticados.
-6. Definir retenção e proteção dos backups exportados.
+- PDF.js permanece empacotado localmente.
+- PDFs/CSVs/TXTs são processados no dispositivo. O OCR de PDFs de imagem também é local ao navegador; não há upload da página para um serviço de OCR.
+- SHA-256 identifica reimportação, mas não comprova autenticidade bancária.
+- Textos exibidos passam por escape de HTML para reduzir XSS.
 
 ## Modelo de ameaça resumido
 
-| Risco | Controle atual | Risco residual |
+| Risco | Controle | Risco residual |
 |---|---|---|
-| Usuário acessar dados de outro | RLS por `auth.uid()` | Configuração incorreta de política |
-| Chave pública exposta | Chave não administrativa + RLS | Abuso de endpoints públicos/limites |
-| Dispositivo perdido | Bloqueio do dispositivo + logout | Cache/token local até limpeza/expiração |
-| Reimportação | SHA-256 + unicidade + deduplicação | Arquivo alterado gera novo hash |
-| Categoria incorreta | Prévia + regras visíveis/versionadas | Regra mal definida pelo usuário |
-| XSS por descrição importada | Escape de HTML | Dependências ou futuras alterações inseguras |
-| Interceptação de rede | HTTPS | Dispositivo/CA comprometidos |
+| Senha vazada | MFA TOTP + RLS AAL2 | Roubo simultâneo da sessão/dispositivo |
+| Bots e força bruta | Turnstile + rate limits do Supabase | Abuso distribuído ou falha do provedor |
+| Usuário acessar dados de outro | RLS por `auth.uid()` | Política alterada incorretamente |
+| Bypass da tela MFA | RLS exige `aal2` | Administrador alterar políticas |
+| Dispositivo perdido | Bloqueio local, logout, expiração | Token/cache acessível até revogação/limpeza |
+| Perda do autenticador | Reset administrativo controlado | Dependência de administrador confiável |
+| Chave pública exposta | Chaves públicas + Auth/RLS | Consumo de cotas dos endpoints públicos |
+| XSS em conteúdo importado | Escape de HTML | Regressão futura ou dependência vulnerável |
 
-## Antes de produção
+## Operação segura
 
-- Ative confirmação de e-mail no Supabase Auth.
-- Configure URLs permitidas/redirecionamento para o domínio do GitHub Pages.
-- Revise as políticas no SQL Editor com duas contas de teste.
-- Considere MFA para contas com dados sensíveis.
-- Configure alertas, rate limits e rotina de backup do Supabase.
+1. Execute e verifique as duas migrações SQL.
+2. Mantenha `captchaRequired` e `mfaRequired` como `true` em produção.
+3. Restrinja administradores do Supabase, Cloudflare e GitHub.
+4. Revise logs de autenticação, falhas MFA, rate limits e usuários.
+5. Teste RLS com duas contas e com um JWT AAL1.
+6. Tenha rotina de backup e recuperação do PostgreSQL.
+7. Atualize dependências e revise o código após mudanças no Supabase Auth ou Turnstile.
+
+
+## Saldo consolidado 4.3
+
+- `SALDO ANTERIOR` nunca é convertido automaticamente em compra.
+- O ajuste `opening_balance` exige opt-in explícito e registra somente o residual não explicado.
+- `category_source = not_applicable`; regras e Oportunidades não classificam esse valor.
+- A chave de cartão guarda somente banco e os quatro últimos dígitos, não o número completo.
+- O índice único parcial do Supabase impede dois ajustes consolidados do mesmo usuário/cartão/período.
+- Os novos campos permanecem nas tabelas já protegidas por `user_id = auth.uid()` e sessão AAL2.
+- Execute `supabase-migration-v4.3-opening-balance.sql` antes de publicar; sem ela, as novas gravações permanecerão na fila local e não devem ser consideradas sincronizadas.
+
+## Detecção genérica 4.4
+
+- A interpretação exige rótulo semântico explícito, valor válido e período seguro.
+- Heurísticas de posição, valor isolado e termos ambíguos não criam `opening_balance`.
+- Quando não há conta explícita, a associação é limitada à família da origem; não cruza indiscriminadamente contas.
+- `accountKey` é derivada e não armazena número completo de cartão como texto legível.
+- Parser, evidência, confiança e referência da origem ficam auditáveis no lote.
+- Execute `supabase-migration-v4.4-generic-opening-balance.sql` para persistir os novos metadados e aplicar a unicidade genérica.
+
+## Adaptadores e mapeamentos 4.5
+
+- Adaptadores apenas produzem payloads; não gravam diretamente e não pulam a prévia.
+- Score insuficiente ou ambíguo abre o mapeador em vez de escolher silenciosamente.
+- Arquivos desconhecidos não são enviados a serviços externos.
+- Mapeamentos guardam estrutura e escolhas, não o conteúdo financeiro bruto do arquivo.
+- Período fixo não é salvo para reutilização, reduzindo o risco de lançar em mês antigo.
+- `import_mappings` usa RLS por usuário e exige AAL2.
+- Scripts do framework são estáticos do mesmo domínio e entram no service worker.

@@ -8,7 +8,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Copiloto Financeiro">
-  <meta name="description" content="Copiloto financeiro pessoal auditável, sincronizado e instalável.">
+  <meta name="description" content="Copiloto financeiro auditável com saldo anterior conciliável, sincronização e PWA.">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self' https://challenges.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://extaofvfrnrgmxvgnlto.supabase.co https://challenges.cloudflare.com https://cdn.jsdelivr.net https://tessdata.projectnaptha.com; frame-src https://challenges.cloudflare.com; worker-src 'self' blob: https://cdn.jsdelivr.net; manifest-src 'self'; upgrade-insecure-requests">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/icon-180.png">
   <link rel="icon" href="icons/icon-192.png">
@@ -28,6 +30,10 @@
         <label id="emailField">E-mail<input id="authEmail" type="email" autocomplete="email" inputmode="email" required placeholder="voce@exemplo.com"></label>
         <label id="passwordField"><span id="passwordLabel">Senha</span><input id="authPassword" type="password" autocomplete="current-password" minlength="8" required placeholder="Mínimo de 8 caracteres"></label>
         <label id="confirmField" class="hidden">Confirmar senha<input id="authPasswordConfirm" type="password" autocomplete="new-password" minlength="8" placeholder="Repita a senha"></label>
+        <div id="captchaSection" class="captcha-section" aria-live="polite">
+          <div id="captchaWidget" class="captcha-widget"></div>
+          <p id="captchaStatus" class="helper-text captcha-status">Carregando verificação de segurança...</p>
+        </div>
         <button id="authSubmit" class="button primary" type="submit">Entrar</button>
         <div class="auth-secondary-actions">
           <button id="forgotPasswordBtn" class="text-button auth-link" type="button">Esqueci minha senha</button>
@@ -35,6 +41,22 @@
         </div>
         <p id="authHelp" class="helper-text" aria-live="polite">Use a mesma conta no PC e no celular para sincronizar.</p>
       </form>
+      <section id="mfaPanel" class="mfa-panel hidden" aria-labelledby="mfaTitle">
+        <div class="mfa-heading"><span class="mfa-lock" aria-hidden="true">✓</span><div><p class="eyebrow">SEGUNDO FATOR</p><h2 id="mfaTitle">Verificação em duas etapas</h2></div></div>
+        <p id="mfaHelp" class="muted">Abra seu aplicativo autenticador e informe o código de 6 dígitos.</p>
+        <div id="mfaEnrollment" class="mfa-enrollment hidden">
+          <img id="mfaQr" class="mfa-qr" alt="QR Code para cadastrar o Copiloto Financeiro no aplicativo autenticador">
+          <p class="helper-text">Se não puder escanear, cadastre manualmente esta chave:</p>
+          <code id="mfaSecret" class="mfa-secret"></code>
+          <button id="copyMfaSecretBtn" class="text-button auth-link" type="button">Copiar chave</button>
+        </div>
+        <form id="mfaForm" novalidate>
+          <label>Código do autenticador<input id="mfaCode" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required></label>
+          <button id="mfaSubmit" class="button primary" type="submit">Verificar e entrar</button>
+          <button id="mfaCancelBtn" class="button secondary" type="button">Cancelar e sair</button>
+        </form>
+        <p class="helper-text">O código muda a cada 30 segundos. O QR Code e a chave não são enviados nem armazenados pelo app.</p>
+      </section>
     </div>
     <p class="auth-security">🔒 Autenticação Supabase • conexão HTTPS • isolamento por usuário (RLS)</p>
   </section>
@@ -56,9 +78,12 @@
         <div class="metric-grid">
           <article class="card metric-card"><span class="metric-icon income">↗</span><p>Receitas</p><strong id="incomeValue">R$ 0,00</strong></article>
           <article class="card metric-card"><span class="metric-icon expense">↘</span><p>Despesas</p><strong id="expenseValue">R$ 0,00</strong></article>
+          <article class="card metric-card"><span class="metric-icon detailed">≡</span><p>Gastos detalhados</p><strong id="detailedExpenseValue">R$ 0,00</strong></article>
+          <article class="card metric-card"><span class="metric-icon consolidated">Σ</span><p>Saldo consolidado</p><strong id="consolidatedExpenseValue">R$ 0,00</strong></article>
           <article class="card metric-card"><span class="metric-icon saving">%</span><p>Taxa de economia</p><strong id="savingRateValue">0%</strong></article>
           <article class="card metric-card"><span class="metric-icon budget">◎</span><p>Margem do orçamento</p><strong id="budgetMarginValue">R$ 0,00</strong></article>
         </div>
+        <article class="card detail-quality-card"><div class="card-title-row"><div><p class="eyebrow">QUALIDADE DO HISTÓRICO</p><h3>Detalhamento das despesas</h3></div><strong id="detailQualityValue">100%</strong></div><div class="progress-track"><div id="detailQualityBar" class="progress-fill"></div></div><p id="detailQualityText" class="audit-note">Sem despesas no mês.</p></article>
         <article class="card projection-card"><div class="card-title-row"><div><p class="eyebrow">FLUXO DE CAIXA</p><h3>Real × comprometido × projetado</h3></div><button class="text-button" type="button" data-go="planning" data-plan-tab="cashflow">Detalhes</button></div><div id="cashflowSnapshot" class="triple-metric"></div><p id="cashflowAssumption" class="audit-note"></p></article>
         <article class="card opportunity-highlight"><div class="card-title-row"><div><p class="eyebrow">OPORTUNIDADE</p><h3>Principal recomendação</h3></div><button class="text-button" type="button" data-go="planning" data-plan-tab="opportunities">Ver todas</button></div><div id="opportunitySnapshot" class="empty-state">Histórico insuficiente para analisar.</div></article>
         <div class="dashboard-grid">
@@ -89,8 +114,9 @@
 
       <section id="view-import" class="view" data-view="import">
         <div class="section-heading"><p class="eyebrow">IMPORTAÇÃO VERIFICÁVEL</p><h2>Importar e conciliar</h2><p>O arquivo original recebe hash SHA-256; nenhuma categoria é gravada sem mostrar qual regra foi aplicada.</p></div>
-        <article class="card import-card"><label id="dropZone" class="drop-zone" for="importFile"><span class="upload-icon">⇧</span><strong>Selecionar arquivos</strong><span>PDF, CSV ou TXT • vários arquivos</span><input id="importFile" type="file" accept=".pdf,.csv,.txt,text/csv,text/plain,application/pdf" multiple></label><div class="divider"><span>ou cole o conteúdo</span></div><label>Texto do extrato<textarea id="pasteText" rows="7" placeholder="03/11/2026 IFOOD 46,90"></textarea></label><button id="analyzeTextBtn" class="button primary" type="button">Analisar texto</button><p id="pdfHint" class="helper-text">O PDF.js permanece local; os arquivos financeiros não são enviados a serviços de OCR.</p></article>
-        <article id="importResult" class="card hidden" aria-live="polite"><div class="card-title-row"><div><p class="eyebrow">CONFERÊNCIA</p><h3>Original × registro</h3></div><span id="importCount" class="status-pill neutral">0 itens</span></div><div id="importStats" class="import-stats"></div><div id="importPreview" class="preview-list"></div><div class="sticky-actions"><button id="cancelImportBtn" class="button secondary" type="button">Cancelar</button><button id="confirmImportBtn" class="button primary" type="button">Importar selecionados</button></div></article>
+        <article class="card import-card"><label id="dropZone" class="drop-zone" for="importFile"><span class="upload-icon">⇧</span><strong>Selecionar arquivos</strong><span>PDF, CSV ou TXT • vários arquivos</span><input id="importFile" type="file" accept=".pdf,.csv,.txt,text/csv,text/plain,application/pdf" multiple></label><div class="divider"><span>ou cole o conteúdo</span></div><label>Texto do extrato<textarea id="pasteText" rows="7" placeholder="03/11/2026 IFOOD 46,90"></textarea></label><button id="analyzeTextBtn" class="button primary" type="button">Analisar texto</button><p id="pdfHint" class="helper-text">O framework escolhe um adaptador confiável. Quando o formato é desconhecido, o mapeador pede confirmação das colunas antes de criar qualquer lançamento.</p></article>
+        <article id="unknownMapper" class="card mapper-card hidden" aria-live="polite"><div class="card-title-row"><div><p class="eyebrow">FORMATO DESCONHECIDO</p><h3>Mapear arquivo com segurança</h3><p id="mapperFileInfo" class="muted"></p></div><span id="mapperMode" class="status-pill neutral">—</span></div><p class="audit-note">Associe os campos. Data, descrição e valor são obrigatórios para lançamentos. Saldo de abertura só será usado se você mapear explicitamente uma coluna/linha semântica e houver período seguro.</p><div id="mapperFields" class="mapper-fields"></div><div class="form-grid"><label>Conta/cartão fixo (opcional)<input id="mapperFixedAccount" maxlength="80" placeholder="Ex.: Conta corrente 1234"></label><label>Período fixo (opcional)<input id="mapperFixedPeriod" type="month"></label></div><div class="form-grid"><label>Instituição (opcional)<input id="mapperProvider" maxlength="60" placeholder="Ex.: Banco Exemplo"></label><label>Forma de pagamento<select id="mapperPayment"><option>Outro</option><option>Crédito</option><option>Débito</option><option>Pix</option><option>Transferência</option></select></label></div><div id="mapperPreview" class="mapper-preview"></div><label class="check-row"><input id="mapperSave" type="checkbox" checked> Salvar este mapeamento para arquivos com a mesma estrutura</label><label>Nome do mapeamento<input id="mapperName" maxlength="80" placeholder="Ex.: Extrato Banco X"></label><div class="form-actions"><button id="cancelMapperBtn" class="button secondary" type="button">Cancelar mapeamento</button><button id="applyMapperBtn" class="button primary" type="button">Aplicar e conferir</button></div><div id="mapperErrors" class="mapper-errors"></div></article>
+        <article id="importResult" class="card hidden" aria-live="polite"><div class="card-title-row"><div><p class="eyebrow">CONFERÊNCIA</p><h3>Original × registro</h3></div><span id="importCount" class="status-pill neutral">0 itens</span></div><div id="importStats" class="import-stats"></div><div id="statementReconciliation" class="statement-reconciliation hidden"></div><div id="importPreview" class="preview-list"></div><div class="sticky-actions"><button id="cancelImportBtn" class="button secondary" type="button">Cancelar</button><button id="confirmImportBtn" class="button primary" type="button">Importar selecionados</button></div></article>
         <article class="card"><div class="card-title-row"><div><p class="eyebrow">ÚLTIMOS LOTES</p><h3>Conciliação</h3></div><button class="text-button" type="button" data-go="planning" data-plan-tab="reconciliation">Ver auditoria</button></div><div id="importBatchSnapshot" class="simple-list empty-state">Nenhuma importação registrada.</div></article>
       </section>
 
@@ -111,7 +137,7 @@
 
         <div id="plan-bills" class="plan-panel"><form id="billForm" class="card form-card compact-form"><div class="card-title-row"><div><p class="eyebrow">COMPROMETIDO</p><h3>Nova conta</h3></div></div><label>Descrição<input id="billDescription" required placeholder="Ex.: Energia"></label><div class="form-grid"><label>Valor<input id="billAmount" inputmode="decimal" required></label><label>Vencimento<input id="billDue" type="date" required></label></div><button class="button primary" type="submit">Adicionar conta</button></form><div id="billSummary" class="list-summary"></div><div id="billList" class="transaction-list"></div></div>
 
-        <div id="plan-settings" class="plan-panel"><form id="settingsForm" class="card form-card compact-form"><div class="card-title-row"><div><p class="eyebrow">PREFERÊNCIAS</p><h3>Orçamento mensal</h3></div></div><label>Valor planejado<input id="monthlyBudget" inputmode="decimal" placeholder="R$ 0,00"></label><button class="button primary" type="submit">Salvar orçamento</button></form><article class="card"><div class="card-title-row"><div><p class="eyebrow">SEUS DADOS</p><h3>Portabilidade</h3></div></div><p class="muted">Exporte um pacote completo com movimentações, lotes, regras, cenários, contas e trilha de auditoria.</p><div class="stack-actions"><button id="exportBtn" class="button secondary" type="button">Exportar backup JSON</button><label class="button secondary file-button">Restaurar backup<input id="restoreFile" type="file" accept="application/json,.json"></label><button id="logoutBtn" class="button secondary" type="button">Sair da conta</button><button id="clearBtn" class="button danger" type="button">Apagar meus dados</button></div></article><article class="card about-card"><strong>Copiloto Financeiro</strong><span>Versão 4.1 • recuperação de senha • Supabase • PWA</span></article></div>
+        <div id="plan-settings" class="plan-panel"><form id="settingsForm" class="card form-card compact-form"><div class="card-title-row"><div><p class="eyebrow">PREFERÊNCIAS</p><h3>Orçamento mensal</h3></div></div><label>Valor planejado<input id="monthlyBudget" inputmode="decimal" placeholder="R$ 0,00"></label><button class="button primary" type="submit">Salvar orçamento</button></form><article class="card security-card"><div class="card-title-row"><div><p class="eyebrow">SEGURANÇA</p><h3>Conta protegida</h3></div><span class="status-pill good">MFA</span></div><p class="muted">O acesso exige senha, código temporário do aplicativo autenticador e proteção antirobô no login, cadastro e recuperação.</p></article><article class="card"><div class="card-title-row"><div><p class="eyebrow">SEUS DADOS</p><h3>Portabilidade</h3></div></div><p class="muted">Exporte um pacote completo com movimentações, lotes, regras, cenários, contas e trilha de auditoria.</p><div class="stack-actions"><button id="exportBtn" class="button secondary" type="button">Exportar backup JSON</button><label class="button secondary file-button">Restaurar backup<input id="restoreFile" type="file" accept="application/json,.json"></label><button id="logoutBtn" class="button secondary" type="button">Sair da conta</button><button id="clearBtn" class="button danger" type="button">Apagar meus dados</button></div></article><article class="card about-card"><strong>Copiloto Financeiro</strong><span>Versão 4.5.0 • adaptadores bancários • mapeador • MFA • Supabase • PWA</span></article></div>
       </section>
     </main>
 
@@ -120,7 +146,11 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div><div id="loadingOverlay" class="loading-overlay hidden" aria-live="assertive"><div class="spinner"></div><strong id="loadingText">Processando...</strong></div>
   <dialog id="confirmDialog" class="dialog"><form method="dialog"><h3 id="dialogTitle">Confirmar ação</h3><p id="dialogMessage"></p><div class="dialog-actions"><button class="button secondary" value="cancel">Cancelar</button><button id="dialogConfirm" class="button danger" value="confirm">Confirmar</button></div></form></dialog>
-  <dialog id="accountDialog" class="dialog"><form method="dialog"><h3>Conta</h3><p id="accountEmail"></p><div class="dialog-actions"><button class="button secondary" value="cancel">Fechar</button><button id="dialogLogout" class="button danger" value="confirm">Sair</button></div></form></dialog>
+  <dialog id="accountDialog" class="dialog"><form method="dialog"><h3>Conta</h3><p id="accountEmail"></p><p id="accountMfaStatus" class="security-state"></p><div class="dialog-actions"><button class="button secondary" value="cancel">Fechar</button><button id="dialogLogout" class="button danger" value="confirm">Sair</button></div></form></dialog>
+  <script src="security-config.js"></script>
+  <script src="bank-adapters.js"></script>
+  <script src="file-mapper.js"></script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
   <script type="module" src="app.js"></script>
 </body>
 </html>
