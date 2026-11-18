@@ -1,4 +1,9 @@
-const STORAGE_KEY = "financas_pwa_v2";
+const LEGACY_STORAGE_KEY = "financas_pwa_v2";
+const CACHE_PREFIX = "financas_pwa_v3";
+const LAST_USER_KEY = "financas_pwa_last_user";
+const MIGRATION_PREFIX = "financas_pwa_migrated";
+const SUPABASE_URL = "https://extaofvfrnrgmxvgnlto.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_8u8nNb3J9mz49Ds2wvVA_A_5s2MeR34";
 const CATEGORIES = ["Alimentação","Transporte","Moradia","Contas","Lazer","Saúde","Educação","Compras","Assinaturas","Investimentos","Salário","Outros"];
 const CATEGORY_COLORS = ["#38bdf8","#34d399","#fb7185","#fbbf24","#a78bfa","#2dd4bf","#f97316","#60a5fa","#f472b6","#84cc16","#c084fc","#94a3b8"];
 const KEYWORDS = {
@@ -17,7 +22,10 @@ const KEYWORDS = {
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-const uid = () => `${Date.now().toString(36)}-${crypto?.randomUUID?.() || Math.random().toString(36).slice(2)}`;
+const uid = () => {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c => (Number(c) ^ (Math.random() * 16 >> Number(c) / 4)).toString(16));
+};
 const today = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
@@ -85,7 +93,7 @@ function guessCategory(description, type = "expense") {
 }
 
 function defaultState() {
-  return {version:2, transactions:[], bills:[], ideas:[], settings:{monthlyBudget:0}};
+  return {version:3, transactions:[], bills:[], ideas:[], budgets:{}, sync:{pending:[],lastSync:null}};
 }
 
 function sanitizeTransaction(transaction) {
@@ -96,54 +104,84 @@ function sanitizeTransaction(transaction) {
     description: String(transaction.description || transaction.desc || "Sem descrição").slice(0,90),
     amount: Math.abs(Number(transaction.amount) || 0),
     category: CATEGORIES.includes(transaction.category) ? transaction.category : guessCategory(transaction.description || transaction.desc, type),
-    paymentMethod: String(transaction.paymentMethod || (transaction.isCard ? "Crédito" : "Outro")),
-    date: normalizeDate(transaction.date) || today(),
+    paymentMethod: String(transaction.paymentMethod || transaction.payment_method || (transaction.isCard ? "Crédito" : "Outro")),
+    date: normalizeDate(transaction.date || transaction.transaction_date) || today(),
     notes: String(transaction.notes || "").slice(0,240),
     source: String(transaction.source || "manual"),
-    createdAt: transaction.createdAt || new Date().toISOString()
+    createdAt: transaction.createdAt || transaction.created_at || new Date().toISOString(),
+    updatedAt: transaction.updatedAt || transaction.updated_at || transaction.createdAt || transaction.created_at || new Date().toISOString()
   };
 }
 
-function loadState() {
+function sanitizeBill(bill) {
+  return {
+    id:String(bill.id || uid()), description:String(bill.description || bill.desc || "Conta").slice(0,90),
+    amount:Math.abs(Number(bill.amount)||0), due:normalizeDate(bill.due || bill.due_date)||today(),
+    paid:bill.paid === true || bill.status === "paid", createdAt:bill.createdAt || bill.created_at || new Date().toISOString(),
+    updatedAt:bill.updatedAt || bill.updated_at || bill.createdAt || bill.created_at || new Date().toISOString()
+  };
+}
+
+function sanitizeIdea(idea) {
+  return {id:String(idea.id || uid()),text:String(idea.text || "").slice(0,400),createdAt:idea.createdAt || idea.created_at || new Date().toISOString(),updatedAt:idea.updatedAt || idea.updated_at || idea.createdAt || idea.created_at || new Date().toISOString()};
+}
+
+function normalizeState(raw) {
+  const base = defaultState();
+  if (!raw || typeof raw !== "object") return base;
+  const budgets = raw.budgets && typeof raw.budgets === "object" ? raw.budgets : {};
+  if (!Object.keys(budgets).length && Number(raw.settings?.monthlyBudget) > 0) budgets[currentMonth()] = Number(raw.settings.monthlyBudget);
+  return {
+    version:3,
+    transactions:Array.isArray(raw.transactions) ? raw.transactions.map(sanitizeTransaction).filter(item => item.amount > 0) : [],
+    bills:Array.isArray(raw.bills) ? raw.bills.map(sanitizeBill).filter(item => item.amount > 0) : [],
+    ideas:Array.isArray(raw.ideas) ? raw.ideas.map(sanitizeIdea).filter(item => item.text) : [],
+    budgets:Object.fromEntries(Object.entries(budgets).map(([month,amount]) => [String(month).slice(0,7),Math.abs(Number(amount)||0)])),
+    sync:{pending:Array.isArray(raw.sync?.pending) ? raw.sync.pending : [],lastSync:raw.sync?.lastSync || null}
+  };
+}
+
+function loadLegacyState() {
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-    if (saved && Array.isArray(saved.transactions)) {
-      return {
-        version: 2,
-        transactions: saved.transactions.map(sanitizeTransaction).filter(t => t.amount > 0),
-        bills: Array.isArray(saved.bills) ? saved.bills : [],
-        ideas: Array.isArray(saved.ideas) ? saved.ideas : [],
-        settings: {...defaultState().settings, ...(saved.settings || {})}
-      };
+    const saved = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY) || "null");
+    if (saved && Array.isArray(saved.transactions)) return normalizeState(saved);
+    const transactions = JSON.parse(localStorage.getItem("transactions") || "[]");
+    const bills = JSON.parse(localStorage.getItem("boletos") || "[]");
+    const ideas = JSON.parse(localStorage.getItem("ideas") || "[]");
+    if (transactions.length || bills.length || ideas.length || Number(localStorage.getItem("monthlyBudget"))) {
+      return normalizeState({transactions,bills,ideas,settings:{monthlyBudget:Number(localStorage.getItem("monthlyBudget"))||0}});
     }
-    const legacyTransactions = JSON.parse(localStorage.getItem("transactions") || "[]");
-    const legacyBills = JSON.parse(localStorage.getItem("boletos") || "[]");
-    const legacyIdeas = JSON.parse(localStorage.getItem("ideas") || "[]");
-    if (legacyTransactions.length || legacyBills.length || legacyIdeas.length) {
-      return {
-        version:2,
-        transactions: legacyTransactions.map(sanitizeTransaction).filter(t => t.amount > 0),
-        bills: legacyBills.map(b => ({id:String(b.id || uid()),description:b.description || b.desc || "Conta",amount:Math.abs(Number(b.amount)||0),due:normalizeDate(b.due)||today(),paid:Boolean(b.paid)})),
-        ideas: legacyIdeas.map(i => ({id:String(i.id || uid()),text:String(i.text || ""),createdAt:i.createdAt || new Date().toISOString()})),
-        settings:{monthlyBudget:Number(localStorage.getItem("monthlyBudget")) || 0}
-      };
-    }
-  } catch (error) { console.warn("Falha ao carregar os dados", error); }
+  } catch (error) { console.warn("Falha ao ler a base local anterior", error); }
   return defaultState();
 }
 
-let state = loadState();
+function cacheKey(userId) { return `${CACHE_PREFIX}:${userId}`; }
+function loadUserState(userId) {
+  try { return normalizeState(JSON.parse(localStorage.getItem(cacheKey(userId)) || "null")); }
+  catch (error) { console.warn("Falha ao abrir cache sincronizado", error); return defaultState(); }
+}
+
+const legacyState = loadLegacyState();
+let state = defaultState();
 let pendingImport = [];
 let toastTimer;
 let deferredInstallPrompt = null;
 let pdfModule = null;
+let cloud = null;
+let session = null;
+let realtimeChannel = null;
+let syncInProgress = false;
+let refreshTimer = null;
 
+function currentUserId() { return session?.user?.id || ""; }
 function saveState() {
+  if (!currentUserId()) return false;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(cacheKey(currentUserId()), JSON.stringify(state));
+    localStorage.setItem(LAST_USER_KEY, currentUserId());
     return true;
   } catch (error) {
-    showToast("Não foi possível salvar. O armazenamento do navegador pode estar cheio.", "error");
+    showToast("Não foi possível atualizar o cache local. O armazenamento pode estar cheio.", "error");
     return false;
   }
 }
@@ -205,31 +243,27 @@ function resetTransactionForm() {
   setTransactionType("expense");
 }
 
-function onTransactionSubmit(event) {
+async function onTransactionSubmit(event) {
   event.preventDefault();
   const description = $("#description").value.trim();
   const amount = Math.abs(parseMoney($("#amount").value));
   const date = normalizeDate($("#date").value);
   if (!description || !amount || !date) return showToast("Preencha descrição, valor e data válidos.", "error");
   const id = $("#transactionId").value;
+  const previous = state.transactions.find(item => item.id === id);
   const transaction = sanitizeTransaction({
-    id: id || uid(), type:$("#transactionType").value, description, amount,
+    id:id || uid(), type:$("#transactionType").value, description, amount,
     category:$("#category").value, paymentMethod:$("#paymentMethod").value,
-    date, notes:$("#notes").value.trim(), source:id ? (state.transactions.find(t => t.id === id)?.source || "manual") : "manual",
-    createdAt:id ? state.transactions.find(t => t.id === id)?.createdAt : new Date().toISOString()
+    date, notes:$("#notes").value.trim(), source:id ? (previous?.source || "manual") : "manual",
+    createdAt:previous?.createdAt || new Date().toISOString(), updatedAt:new Date().toISOString()
   });
-  if (id) {
-    state.transactions = state.transactions.map(item => item.id === id ? transaction : item);
-    showToast("Movimentação atualizada.");
-  } else {
-    state.transactions.push(transaction);
-    showToast("Movimentação salva.");
-  }
+  state.transactions = id ? state.transactions.map(item => item.id === id ? transaction : item) : [...state.transactions,transaction];
+  queueMutation("transactions","upsert",transaction,transaction.id);
   saveState();
-  $("#dashboardMonth").value = monthOf(date);
-  $("#listMonth").value = monthOf(date);
-  resetTransactionForm();
-  navigate("transactions");
+  $("#dashboardMonth").value = monthOf(date); $("#listMonth").value = monthOf(date);
+  resetTransactionForm(); renderAll(); navigate("transactions");
+  showToast(id ? "Movimentação atualizada." : "Movimentação salva.");
+  await syncPending();
 }
 
 function editTransaction(id) {
@@ -254,10 +288,8 @@ async function deleteTransaction(id) {
   if (!transaction) return;
   if (!(await askConfirmation("Excluir movimentação", `Deseja excluir “${transaction.description}”?`, "Excluir"))) return;
   state.transactions = state.transactions.filter(item => item.id !== id);
-  saveState();
-  renderTransactions();
-  renderDashboard();
-  showToast("Movimentação excluída.");
+  queueMutation("transactions","delete",null,id); saveState(); renderAll();
+  showToast("Movimentação excluída."); await syncPending();
 }
 
 function transactionsForMonth(month) { return state.transactions.filter(t => monthOf(t.date) === month); }
@@ -276,7 +308,7 @@ function renderDashboard() {
   const month = $("#dashboardMonth").value || currentMonth();
   const items = transactionsForMonth(month);
   const totals = totalsFor(items);
-  const budget = Number(state.settings.monthlyBudget) || 0;
+  const budget = Number(state.budgets?.[month]) || 0;
   const margin = budget - totals.expense;
   const savingRate = totals.income > 0 ? (totals.balance / totals.income) * 100 : 0;
   $("#balanceValue").textContent = formatMoney(totals.balance);
@@ -542,30 +574,35 @@ function cancelImport() {
   $("#importPreview").innerHTML = "";
 }
 
-function confirmImport() {
-  const selected = pendingImport.filter(item => item.selected && !item.duplicate).map(item => sanitizeTransaction({...item,id:uid(),createdAt:new Date().toISOString()}));
-  if (!selected.length) return showToast("Selecione ao menos um lançamento.", "error");
-  state.transactions.push(...selected);
+async function confirmImport() {
+  const candidates = pendingImport.filter(item => item.selected && !item.duplicate);
+  if (!candidates.length) return showToast("Selecione ao menos um lançamento.", "error");
+  const selected = [];
+  for (const item of candidates) {
+    const fingerprint = `${item.date}|${item.type}|${Number(item.amount).toFixed(2)}|${normalizeText(item.description).slice(0,60)}`;
+    selected.push(sanitizeTransaction({...item,id:await deterministicUuid(fingerprint),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}));
+  }
+  const added = selected.filter(item => !state.transactions.some(existing => existing.id === item.id) && !isDuplicate(item,selected.filter(x => x.id !== item.id)));
+  if (!added.length) return showToast("Todos os lançamentos selecionados já existem.", "error");
+  state.transactions.push(...added);
+  added.forEach(item => queueMutation("transactions","upsert",item,item.id));
   if (!saveState()) return;
-  const latestMonth = selected.map(item => monthOf(item.date)).sort().at(-1) || currentMonth();
-  $("#dashboardMonth").value = latestMonth;
-  $("#listMonth").value = latestMonth;
-  $("#pasteText").value = "";
-  cancelImport();
-  renderDashboard();
-  renderTransactions();
-  navigate("transactions");
-  showToast(`${selected.length} lançamento(s) importado(s). Lista e Dashboard atualizados.`);
+  const latestMonth = added.map(item => monthOf(item.date)).sort().at(-1) || currentMonth();
+  $("#dashboardMonth").value = latestMonth; $("#listMonth").value = latestMonth; $("#pasteText").value = "";
+  cancelImport(); renderAll(); navigate("transactions");
+  showToast(`${added.length} lançamento(s) importado(s). Lista e Dashboard atualizados.`);
+  await syncPending();
 }
 
-function onBillSubmit(event) {
+async function onBillSubmit(event) {
   event.preventDefault();
   const description = $("#billDescription").value.trim();
   const amount = Math.abs(parseMoney($("#billAmount").value));
   const due = normalizeDate($("#billDue").value);
   if (!description || !amount || !due) return showToast("Preencha a conta corretamente.", "error");
-  state.bills.push({id:uid(),description,amount,due,paid:false,createdAt:new Date().toISOString()});
-  saveState(); event.target.reset(); $("#billDue").value = today(); renderBills(); showToast("Conta adicionada.");
+  const bill = sanitizeBill({id:uid(),description,amount,due,paid:false,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});
+  state.bills.push(bill); queueMutation("bills","upsert",bill,bill.id); saveState();
+  event.target.reset(); $("#billDue").value = today(); renderBills(); showToast("Conta adicionada."); await syncPending();
 }
 
 async function handleBillAction(button) {
@@ -574,9 +611,11 @@ async function handleBillAction(button) {
   if (!bill) return;
   if (button.dataset.billDelete) {
     if (!(await askConfirmation("Excluir conta", `Deseja excluir “${bill.description}”?`, "Excluir"))) return;
-    state.bills = state.bills.filter(item => item.id !== id);
-  } else bill.paid = !bill.paid;
-  saveState(); renderBills(); showToast(button.dataset.billDelete ? "Conta excluída." : bill.paid ? "Conta marcada como paga." : "Conta reaberta.");
+    state.bills = state.bills.filter(item => item.id !== id); queueMutation("bills","delete",null,id);
+  } else {
+    bill.paid = !bill.paid; bill.updatedAt = new Date().toISOString(); queueMutation("bills","upsert",bill,bill.id);
+  }
+  saveState(); renderBills(); showToast(button.dataset.billDelete ? "Conta excluída." : bill.paid ? "Conta marcada como paga." : "Conta reaberta."); await syncPending();
 }
 
 function renderBills() {
@@ -586,9 +625,10 @@ function renderBills() {
   $("#billList").innerHTML = bills.length ? bills.map(bill => `<article class="transaction-item ${bill.paid ? "income" : "expense"}"><span class="transaction-symbol">${bill.paid ? "✓" : "!"}</span><div class="transaction-content"><strong>${escapeHtml(bill.description)}</strong><small>Vence ${formatDate(bill.due)} • ${bill.paid ? "Paga" : "Pendente"}</small></div><div class="transaction-side"><strong>${formatMoney(bill.amount)}</strong><div class="item-actions"><button class="mini-action" data-bill-pay="${bill.id}">${bill.paid ? "Reabrir" : "Marcar paga"}</button><button class="mini-action" data-bill-delete="${bill.id}">Excluir</button></div></div></article>`).join("") : `<div class="card empty-state">Nenhuma conta cadastrada.</div>`;
 }
 
-function onIdeaSubmit(event) {
+async function onIdeaSubmit(event) {
   event.preventDefault(); const text = $("#ideaText").value.trim(); if (!text) return;
-  state.ideas.push({id:uid(),text,createdAt:new Date().toISOString()}); saveState(); event.target.reset(); renderIdeas(); showToast("Ideia salva.");
+  const idea = sanitizeIdea({id:uid(),text,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});
+  state.ideas.push(idea); queueMutation("ideas","upsert",idea,idea.id); saveState(); event.target.reset(); renderIdeas(); showToast("Ideia salva."); await syncPending();
 }
 function renderIdeas() {
   const ideas = [...state.ideas].sort((a,b) => String(b.createdAt).localeCompare(String(a.createdAt)));
@@ -596,15 +636,28 @@ function renderIdeas() {
 }
 async function deleteIdea(id) {
   if (!(await askConfirmation("Excluir anotação", "Deseja excluir esta ideia ou meta?", "Excluir"))) return;
-  state.ideas = state.ideas.filter(item => item.id !== id); saveState(); renderIdeas(); showToast("Anotação excluída.");
+  state.ideas = state.ideas.filter(item => item.id !== id); queueMutation("ideas","delete",null,id); saveState(); renderIdeas(); showToast("Anotação excluída."); await syncPending();
 }
 
-function renderMore() { renderBills(); renderIdeas(); $("#monthlyBudget").value = state.settings.monthlyBudget ? Number(state.settings.monthlyBudget).toFixed(2).replace(".",",") : ""; }
-function saveSettings(event) {
-  event.preventDefault(); state.settings.monthlyBudget = Math.abs(parseMoney($("#monthlyBudget").value)); saveState(); renderDashboard(); showToast("Orçamento salvo.");
+function renderMore() {
+  renderBills(); renderIdeas();
+  const month = $("#budgetMonth").value || $("#dashboardMonth").value || currentMonth();
+  $("#budgetMonth").value = month;
+  $("#monthlyBudget").value = state.budgets[month] ? Number(state.budgets[month]).toFixed(2).replace(".",",") : "";
+}
+function onBudgetMonthChange() {
+  const month = $("#budgetMonth").value || currentMonth();
+  $("#monthlyBudget").value = state.budgets[month] ? Number(state.budgets[month]).toFixed(2).replace(".",",") : "";
+}
+async function saveSettings(event) {
+  event.preventDefault();
+  const month = $("#budgetMonth").value || currentMonth();
+  const amount = Math.abs(parseMoney($("#monthlyBudget").value));
+  state.budgets[month] = amount; queueMutation("budgets","upsert",{month,amount},month); saveState();
+  $("#dashboardMonth").value = month; renderDashboard(); showToast("Orçamento mensal salvo."); await syncPending();
 }
 function exportBackup() {
-  const blob = new Blob([JSON.stringify({...state,exportedAt:new Date().toISOString()},null,2)],{type:"application/json"});
+  const blob = new Blob([JSON.stringify({...state,version:3,exportedAt:new Date().toISOString()},null,2)],{type:"application/json"});
   const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = `financas-backup-${today()}.json`; anchor.click(); setTimeout(() => URL.revokeObjectURL(url),1000); showToast("Backup exportado.");
 }
 async function restoreBackup(file) {
@@ -612,25 +665,178 @@ async function restoreBackup(file) {
   try {
     const data = JSON.parse(await file.text());
     if (!data || !Array.isArray(data.transactions)) throw new Error("Formato inválido");
-    if (!(await askConfirmation("Restaurar backup", "Os dados atuais serão substituídos pelo conteúdo do arquivo.", "Restaurar"))) return;
-    state = {version:2,transactions:data.transactions.map(sanitizeTransaction).filter(t => t.amount>0),bills:Array.isArray(data.bills)?data.bills:[],ideas:Array.isArray(data.ideas)?data.ideas:[],settings:{...defaultState().settings,...(data.settings||{})}};
-    saveState(); initializeValues(); renderAll(); showToast("Backup restaurado.");
-  } catch (error) { showToast("Arquivo de backup inválido.","error"); }
+    if (!(await askConfirmation("Restaurar backup", "Os dados sincronizados atuais serão substituídos pelo conteúdo do arquivo.", "Restaurar"))) return;
+    const previous = state;
+    state = normalizeState(data); state.sync.pending = [];
+    previous.transactions.forEach(item => queueMutation("transactions","delete",null,item.id));
+    previous.bills.forEach(item => queueMutation("bills","delete",null,item.id));
+    previous.ideas.forEach(item => queueMutation("ideas","delete",null,item.id));
+    Object.keys(previous.budgets).forEach(month => queueMutation("budgets","delete",null,month));
+    state.transactions = state.transactions.map(item => ({...item,id:isUuid(item.id)?item.id:uid()}));
+    state.bills = state.bills.map(item => ({...item,id:isUuid(item.id)?item.id:uid()}));
+    state.ideas = state.ideas.map(item => ({...item,id:isUuid(item.id)?item.id:uid()}));
+    state.transactions.forEach(item => queueMutation("transactions","upsert",item,item.id));
+    state.bills.forEach(item => queueMutation("bills","upsert",item,item.id));
+    state.ideas.forEach(item => queueMutation("ideas","upsert",item,item.id));
+    Object.entries(state.budgets).forEach(([month,amount]) => queueMutation("budgets","upsert",{month,amount},month));
+    saveState(); initializeValues(); renderAll(); showToast("Backup restaurado no cache. Sincronizando..."); await syncPending();
+  } catch (error) { console.error(error); showToast("Arquivo de backup inválido.","error"); }
   finally { $("#restoreFile").value = ""; }
 }
 async function clearAllData() {
-  if (!(await askConfirmation("Apagar todos os dados", "Esta ação excluirá movimentações, contas, ideias e configurações deste dispositivo.", "Apagar tudo"))) return;
-  state = defaultState(); localStorage.removeItem(STORAGE_KEY); initializeValues(); renderAll(); showToast("Todos os dados foram apagados.");
+  if (!(await askConfirmation("Apagar todos os dados", "Esta ação excluirá os dados deste usuário no Supabase e nos dispositivos sincronizados.", "Apagar tudo"))) return;
+  const previous = state; state = defaultState();
+  previous.transactions.forEach(item => queueMutation("transactions","delete",null,item.id));
+  previous.bills.forEach(item => queueMutation("bills","delete",null,item.id));
+  previous.ideas.forEach(item => queueMutation("ideas","delete",null,item.id));
+  Object.keys(previous.budgets).forEach(month => queueMutation("budgets","delete",null,month));
+  saveState(); initializeValues(); renderAll(); showToast("Dados removidos do cache. Sincronizando exclusões..."); await syncPending();
 }
 
 function switchMoreTab(name) {
   $$("[data-more-tab]").forEach(button => button.classList.toggle("active",button.dataset.moreTab === name));
   $$(".more-panel").forEach(panel => panel.classList.toggle("active",panel.id === `more-${name}`));
 }
-function renderAll() { renderDashboard(); renderTransactions(); renderBills(); renderIdeas(); }
+function renderAll() { renderDashboard(); renderTransactions(); renderBills(); renderIdeas(); updateSyncStatus(); }
 function initializeValues() {
-  $("#dashboardMonth").value = currentMonth(); $("#listMonth").value = currentMonth(); $("#date").value = today(); $("#billDue").value = today();
-  $("#monthlyBudget").value = state.settings.monthlyBudget ? Number(state.settings.monthlyBudget).toFixed(2).replace(".",",") : "";
+  const month = $("#dashboardMonth").value || currentMonth();
+  $("#dashboardMonth").value = month; $("#listMonth").value = $("#listMonth").value || month; $("#date").value = today(); $("#billDue").value = today();
+  if ($("#budgetMonth")) { $("#budgetMonth").value = month; onBudgetMonthChange(); }
+}
+
+function isUuid(value) { return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value||"")); }
+async function deterministicUuid(value) {
+  if (!globalThis.crypto?.subtle) return uid();
+  const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)));
+  bytes[6] = (bytes[6] & 0x0f) | 0x50; bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = [...bytes.slice(0,16)].map(byte => byte.toString(16).padStart(2,"0")).join("");
+  return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20,32)}`;
+}
+function operationKey(table,id) { return `${table}:${id}`; }
+function queueMutation(table,action,data,id) {
+  const key = operationKey(table,id); const pending = state.sync.pending.filter(op => op.key !== key);
+  pending.push({key,table,action,id,data,queuedAt:new Date().toISOString()}); state.sync.pending = pending;
+}
+function decodeSource(value) {
+  try { const parsed = JSON.parse(value); if (parsed && parsed.app === "financas-pwa") return parsed; } catch (_) {}
+  return {source:String(value || "manual"),notes:""};
+}
+function encodeSource(item) { return JSON.stringify({app:"financas-pwa",source:item.source || "manual",notes:item.notes || ""}); }
+function toCloudRow(table,item) {
+  const user_id = currentUserId();
+  if (table === "transactions") return {id:item.id,user_id,transaction_date:item.date,description:item.description,category:item.category,type:item.type,payment_method:item.paymentMethod,amount:item.amount,source:encodeSource(item),created_at:item.createdAt};
+  if (table === "bills") return {id:item.id,user_id,description:item.description,amount:item.amount,due_date:item.due,status:item.paid ? "paid" : "pending",created_at:item.createdAt};
+  if (table === "ideas") return {id:item.id,user_id,text:item.text,created_at:item.createdAt};
+  if (table === "budgets") return {user_id,month:`${item.month}-01`,amount:item.amount};
+  return item;
+}
+function fromCloudTransaction(row) { const meta=decodeSource(row.source); return sanitizeTransaction({...row,date:row.transaction_date,paymentMethod:row.payment_method,source:meta.source,notes:meta.notes}); }
+function fromCloudBill(row) { return sanitizeBill({...row,due:row.due_date,paid:row.status === "paid"}); }
+function fromCloudIdea(row) { return sanitizeIdea(row); }
+function mergePending(table,remoteItems) {
+  const map = new Map(remoteItems.map(item => [String(item.id),item]));
+  state.sync.pending.filter(op => op.table === table).forEach(op => { if (op.action === "delete") map.delete(String(op.id)); else map.set(String(op.id),op.data); });
+  return [...map.values()];
+}
+function mergePendingBudgets(remote) {
+  const result={...remote}; state.sync.pending.filter(op => op.table === "budgets").forEach(op => { if(op.action === "delete") delete result[op.id]; else result[op.id]=Number(op.data.amount)||0; }); return result;
+}
+function updateSyncStatus(message) {
+  const dot=$("#syncDot"), text=$("#syncText"); if (!dot || !text) return;
+  const pending=state.sync.pending.length;
+  let label=message || (!navigator.onLine ? `Offline${pending ? ` • ${pending} pendente(s)` : ""}` : pending ? `${pending} alteração(ões) pendente(s)` : state.sync.lastSync ? "Sincronizado" : "Conectando...");
+  text.textContent=label; dot.className=`sync-dot ${!navigator.onLine ? "offline" : pending ? "pending" : "online"}`;
+}
+async function applyOperation(op) {
+  if (op.action === "delete") {
+    let query=cloud.from(op.table).delete();
+    query = op.table === "budgets" ? query.eq("user_id",currentUserId()).eq("month",`${op.id}-01`) : query.eq("id",op.id);
+    const {error}=await query; if(error) throw error; return;
+  }
+  const row=toCloudRow(op.table,op.data);
+  const options={onConflict:op.table === "budgets" ? "user_id,month" : "id"};
+  const {error}=await cloud.from(op.table).upsert(row,options); if(error) throw error;
+}
+async function syncPending() {
+  if (!cloud || !session || syncInProgress || !navigator.onLine) { updateSyncStatus(); return; }
+  syncInProgress=true; updateSyncStatus("Sincronizando...");
+  try {
+    while (state.sync.pending.length) {
+      const op=state.sync.pending[0]; await applyOperation(op);
+      state.sync.pending.shift(); state.sync.lastSync=new Date().toISOString(); saveState();
+    }
+    updateSyncStatus("Sincronizado");
+  } catch(error) {
+    console.error("Falha de sincronização",error); updateSyncStatus("Pendente • tente novamente");
+    if (navigator.onLine) showToast(`Não foi possível sincronizar: ${error.message || "verifique a conexão"}.`,"error");
+  } finally { syncInProgress=false; saveState(); }
+}
+async function loadRemoteData({quiet=false}={}) {
+  if (!cloud || !session || !navigator.onLine) return;
+  if(!quiet) updateSyncStatus("Carregando nuvem...");
+  const [transactions,budgets,bills,ideas]=await Promise.all([
+    cloud.from("transactions").select("*").order("transaction_date",{ascending:false}),
+    cloud.from("budgets").select("*"), cloud.from("bills").select("*").order("due_date",{ascending:true}),
+    cloud.from("ideas").select("*").order("created_at",{ascending:false})
+  ]);
+  const failure=[transactions,budgets,bills,ideas].find(result => result.error); if(failure) throw failure.error;
+  state.transactions=mergePending("transactions",transactions.data.map(fromCloudTransaction));
+  state.bills=mergePending("bills",bills.data.map(fromCloudBill)); state.ideas=mergePending("ideas",ideas.data.map(fromCloudIdea));
+  const cloudBudgets=Object.fromEntries(budgets.data.map(row => [String(row.month).slice(0,7),Number(row.amount)||0])); state.budgets=mergePendingBudgets(cloudBudgets);
+  state.sync.lastSync=new Date().toISOString(); saveState(); renderAll();
+}
+function scheduleCloudRefresh() { clearTimeout(refreshTimer); refreshTimer=setTimeout(() => loadRemoteData({quiet:true}).catch(error => console.warn("Realtime refresh",error)),500); }
+function setupRealtime() {
+  if(realtimeChannel) cloud.removeChannel(realtimeChannel);
+  realtimeChannel=cloud.channel(`financas-${currentUserId()}`).on("postgres_changes",{event:"*",schema:"public",filter:`user_id=eq.${currentUserId()}`},scheduleCloudRefresh).subscribe(status => {
+    if(status === "SUBSCRIBED") updateSyncStatus();
+  });
+}
+async function migrateLegacyData() {
+  const count=legacyState.transactions.length+legacyState.bills.length+legacyState.ideas.length+Object.keys(legacyState.budgets).length;
+  const marker=`${MIGRATION_PREFIX}:${currentUserId()}`;
+  if(!count || localStorage.getItem(marker)) return;
+  const accepted=await askConfirmation("Migrar dados deste dispositivo",`Foram encontrados ${count} item(ns) da versão local. Deseja copiá-los para sua conta sincronizada? Uma cópia de segurança local será preservada.`,"Migrar agora");
+  if(!accepted) return;
+  localStorage.setItem(`${LEGACY_STORAGE_KEY}_backup_${Date.now()}`,JSON.stringify(legacyState));
+  const importedTransactions=legacyState.transactions.map(item => sanitizeTransaction({...item,id:uid(),updatedAt:new Date().toISOString()})).filter(item => !isDuplicate(item));
+  const importedBills=legacyState.bills.map(item => sanitizeBill({...item,id:uid(),updatedAt:new Date().toISOString()}));
+  const importedIdeas=legacyState.ideas.map(item => sanitizeIdea({...item,id:uid(),updatedAt:new Date().toISOString()}));
+  state.transactions.push(...importedTransactions); state.bills.push(...importedBills); state.ideas.push(...importedIdeas); state.budgets={...legacyState.budgets,...state.budgets};
+  importedTransactions.forEach(item => queueMutation("transactions","upsert",item,item.id)); importedBills.forEach(item => queueMutation("bills","upsert",item,item.id)); importedIdeas.forEach(item => queueMutation("ideas","upsert",item,item.id));
+  Object.entries(legacyState.budgets).forEach(([month,amount]) => queueMutation("budgets","upsert",{month,amount},month));
+  localStorage.setItem(marker,new Date().toISOString()); saveState(); renderAll(); showToast("Dados locais migrados para a fila segura de sincronização."); await syncPending();
+}
+function showAuthenticatedApp() {
+  $("#authGate").classList.add("hidden"); $("#appShell").classList.remove("hidden");
+  $("#userEmail").textContent=session?.user?.email || "Conta";
+}
+function showLogin() {
+  $("#appShell").classList.add("hidden"); $("#authGate").classList.remove("hidden"); $("#authPassword").value=""; setLoading(false);
+}
+async function activateSession(nextSession) {
+  session=nextSession;
+  if(!session) { if(realtimeChannel && cloud) cloud.removeChannel(realtimeChannel); realtimeChannel=null; state=defaultState(); showLogin(); return; }
+  state=loadUserState(currentUserId()); showAuthenticatedApp(); initializeValues(); renderAll();
+  try { await syncPending(); await loadRemoteData(); await migrateLegacyData(); setupRealtime(); }
+  catch(error) { console.error(error); showToast(`Cache aberto; nuvem indisponível: ${error.message || "verifique a conexão"}.`,"error"); updateSyncStatus(); }
+}
+async function signIn(event) {
+  event.preventDefault(); const email=$("#authEmail").value.trim(); const password=$("#authPassword").value;
+  if(!email || !password) return showToast("Informe e-mail e senha.","error");
+  if(!cloud) return showToast("Cliente de sincronização indisponível. Conecte-se à internet e recarregue.","error");
+  setLoading(true,"Entrando..."); const {data,error}=await cloud.auth.signInWithPassword({email,password}); setLoading(false);
+  if(error) return showToast(`Não foi possível entrar: ${error.message}`,"error"); await activateSession(data.session);
+}
+async function signOut() {
+  if(state.sync.pending.length && !(await askConfirmation("Sair com alterações pendentes",`${state.sync.pending.length} alteração(ões) ainda não foram enviadas. Elas permanecerão no cache deste dispositivo.`,"Sair"))) return;
+  setLoading(true,"Saindo..."); const {error}=await cloud.auth.signOut(); setLoading(false); if(error) return showToast(error.message,"error"); showLogin();
+}
+async function initializeCloud() {
+  if(!globalThis.supabase?.createClient) throw new Error("biblioteca do Supabase não carregou");
+  cloud=globalThis.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true},realtime:{params:{eventsPerSecond:2}}});
+  cloud.auth.onAuthStateChange((event,nextSession) => { if(event === "SIGNED_OUT") activateSession(null); else if(event === "TOKEN_REFRESHED") session=nextSession; });
+  const {data,error}=await cloud.auth.getSession(); if(error) throw error; await activateSession(data.session);
 }
 
 function bindEvents() {
@@ -639,7 +845,7 @@ function bindEvents() {
   $$(".segment").forEach(button => button.addEventListener("click",() => setTransactionType(button.dataset.type)));
   $("#transactionForm").addEventListener("submit",onTransactionSubmit);
   $("#cancelEditBtn").addEventListener("click",resetTransactionForm);
-  $("#dashboardMonth").addEventListener("change",renderDashboard);
+  $("#dashboardMonth").addEventListener("change",() => { renderDashboard(); if ($("#budgetMonth")) { $("#budgetMonth").value=$("#dashboardMonth").value; onBudgetMonthChange(); } });
   ["#listMonth","#filterType","#filterCategory"].forEach(selector => $(selector).addEventListener("change",renderTransactions));
   $("#searchTransactions").addEventListener("input",renderTransactions);
   $("#transactionList").addEventListener("click",event => { const edit = event.target.closest("[data-edit]"); const remove = event.target.closest("[data-delete]"); if (edit) editTransaction(edit.dataset.edit); if (remove) deleteTransaction(remove.dataset.delete); });
@@ -651,7 +857,9 @@ function bindEvents() {
   $$("[data-more-tab]").forEach(button => button.addEventListener("click",() => switchMoreTab(button.dataset.moreTab)));
   $("#billForm").addEventListener("submit",onBillSubmit); $("#billList").addEventListener("click",event => {const button=event.target.closest("[data-bill-pay],[data-bill-delete]"); if(button) handleBillAction(button);});
   $("#ideaForm").addEventListener("submit",onIdeaSubmit); $("#ideaList").addEventListener("click",event => {const button=event.target.closest("[data-idea-delete]"); if(button) deleteIdea(button.dataset.ideaDelete);});
-  $("#settingsForm").addEventListener("submit",saveSettings); $("#exportBtn").addEventListener("click",exportBackup); $("#restoreFile").addEventListener("change",event => restoreBackup(event.target.files[0])); $("#clearBtn").addEventListener("click",clearAllData);
+  $("#settingsForm").addEventListener("submit",saveSettings); $("#budgetMonth").addEventListener("change",onBudgetMonthChange); $("#exportBtn").addEventListener("click",exportBackup); $("#restoreFile").addEventListener("change",event => restoreBackup(event.target.files[0])); $("#clearBtn").addEventListener("click",clearAllData);
+  $("#authForm").addEventListener("submit",signIn); $("#logoutBtn").addEventListener("click",signOut); $("#retrySyncBtn").addEventListener("click",async() => { await syncPending(); await loadRemoteData().catch(error => showToast(error.message,"error")); });
+  window.addEventListener("online",async() => { updateSyncStatus(); await syncPending(); await loadRemoteData({quiet:true}).catch(error => console.warn(error)); }); window.addEventListener("offline",updateSyncStatus);
   window.addEventListener("beforeinstallprompt",event => {event.preventDefault();deferredInstallPrompt=event;$("#installBtn").classList.remove("hidden");});
   $("#installBtn").addEventListener("click",async() => {if(!deferredInstallPrompt)return;deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;$("#installBtn").classList.add("hidden");});
   window.addEventListener("appinstalled",() => showToast("Aplicativo instalado."));
@@ -662,10 +870,12 @@ function registerServiceWorker() {
   if (location.protocol === "file:") $("#pdfHint").textContent = "CSV e TXT funcionam neste arquivo. Para PDF, instalação e modo offline, publique a pasta em HTTPS e abra pelo Safari.";
 }
 
-function init() {
-  populateCategories(); initializeValues(); bindEvents(); renderAll(); registerServiceWorker();
+async function init() {
+  populateCategories(); bindEvents(); registerServiceWorker();
   const initial = location.hash.slice(1); navigate(["dashboard","add","transactions","import","more"].includes(initial) ? initial : "dashboard");
+  try { await initializeCloud(); }
+  catch(error) { console.error(error); showLogin(); $("#authMessage").textContent="Não foi possível carregar o login. Verifique a internet e recarregue a página."; }
 }
 
-window.__financeTest = {parseMoney,normalizeDate,guessCategory,parseImportText,isDuplicate,sanitizeTransaction};
+window.__financeTest = {parseMoney,normalizeDate,guessCategory,parseImportText,isDuplicate,sanitizeTransaction,normalizeState,deterministicUuid,toCloudRow};
 init();

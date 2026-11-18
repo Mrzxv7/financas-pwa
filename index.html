@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Finanças">
-  <meta name="description" content="Controle financeiro pessoal, privado e offline.">
+  <meta name="description" content="Controle financeiro pessoal sincronizado com Supabase, com cache offline.">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/icon-180.png">
   <link rel="icon" href="icons/icon-192.png">
@@ -16,15 +16,33 @@
   <title>Finanças</title>
 </head>
 <body>
-  <div class="app-shell">
+  <section id="authGate" class="auth-gate">
+    <div class="auth-card">
+      <div class="auth-brand" aria-hidden="true">R$</div>
+      <p class="eyebrow">FINANÇAS PWA</p>
+      <h1>Entre na sua conta</h1>
+      <p id="authMessage" class="muted">Use o mesmo login no celular e no computador para manter tudo sincronizado.</p>
+      <form id="authForm" class="auth-form">
+        <label>E-mail<input id="authEmail" type="email" autocomplete="username" inputmode="email" required placeholder="seu@email.com"></label>
+        <label>Senha<input id="authPassword" type="password" autocomplete="current-password" required minlength="6" placeholder="Sua senha"></label>
+        <button class="button primary" type="submit">Entrar</button>
+      </form>
+      <small>Primeiro acesso requer internet. Depois, a sessão e o cache permitem continuar usando a PWA offline.</small>
+    </div>
+  </section>
+
+  <div id="appShell" class="app-shell hidden">
     <header class="topbar">
       <div>
         <p class="eyebrow">CONTROLE PESSOAL</p>
         <h1>Finanças</h1>
       </div>
-      <button id="installBtn" class="icon-button hidden" type="button" aria-label="Instalar aplicativo" title="Instalar aplicativo">
-        <span aria-hidden="true">⇩</span>
-      </button>
+      <div class="topbar-actions">
+        <button id="retrySyncBtn" class="sync-status" type="button" title="Sincronizar agora"><i id="syncDot" class="sync-dot pending"></i><span id="syncText">Conectando...</span></button>
+        <span id="userEmail" class="user-email"></span>
+        <button id="logoutBtn" class="icon-button" type="button" aria-label="Sair" title="Sair">↪</button>
+        <button id="installBtn" class="icon-button hidden" type="button" aria-label="Instalar aplicativo" title="Instalar aplicativo"><span aria-hidden="true">⇩</span></button>
+      </div>
     </header>
 
     <main id="mainContent">
@@ -221,19 +239,19 @@
         <div id="more-settings" class="more-panel">
           <form id="settingsForm" class="card form-card compact-form">
             <div class="card-title-row"><div><p class="eyebrow">PREFERÊNCIAS</p><h3>Orçamento mensal</h3></div></div>
-            <label>Valor planejado<input id="monthlyBudget" type="text" inputmode="decimal" placeholder="R$ 0,00"></label>
+            <div class="form-grid"><label>Mês<input id="budgetMonth" type="month" required></label><label>Valor planejado<input id="monthlyBudget" type="text" inputmode="decimal" placeholder="R$ 0,00"></label></div>
             <button class="button primary" type="submit">Salvar orçamento</button>
           </form>
           <article class="card">
             <div class="card-title-row"><div><p class="eyebrow">SEUS DADOS</p><h3>Backup e restauração</h3></div></div>
-            <p class="muted">Os dados ficam apenas neste navegador. Faça backup regularmente.</p>
+            <p class="muted">Os dados são sincronizados com sua conta no Supabase. O cache local mantém o uso offline e o backup JSON oferece uma cópia adicional.</p>
             <div class="stack-actions">
               <button id="exportBtn" class="button secondary" type="button">Exportar backup JSON</button>
               <label class="button secondary file-button">Restaurar backup<input id="restoreFile" type="file" accept="application/json,.json"></label>
               <button id="clearBtn" class="button danger" type="button">Apagar todos os dados</button>
             </div>
           </article>
-          <article class="card about-card"><strong>Finanças PWA</strong><span>Versão 2.0 • mobile-first • offline</span></article>
+          <article class="card about-card"><strong>Finanças PWA</strong><span>Versão 3.0 • Supabase • offline-first</span></article>
         </div>
       </section>
     </main>
@@ -257,6 +275,7 @@
     </form>
   </dialog>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script type="module" src="app.js"></script>
 </body>
 </html>

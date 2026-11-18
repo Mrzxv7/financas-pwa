@@ -1,49 +1,84 @@
-# Finanças PWA
+# Finanças PWA 3.0
 
-Aplicativo financeiro pessoal mobile-first, reconstruído do zero em HTML, CSS e JavaScript.
+PWA financeira pessoal, mobile-first, sincronizada entre celular e computador pelo Supabase e utilizável offline após o primeiro acesso.
 
-## Executar
+## Publicar
 
-A PWA deve ser publicada em um endereço **HTTPS**. Para teste local no computador:
+1. Copie os arquivos deste pacote para a raiz do repositório publicado pelo GitHub Pages.
+2. Preserve a pasta `vendor` já existente, com `pdf.mjs`, `pdf.worker.mjs` e a licença do PDF.js.
+3. Confirme os arquivos em `icons/`.
+4. Faça commit/push no branch do GitHub Pages.
+5. Abra o site por HTTPS e faça uma recarga completa para ativar o service worker `financas-pwa-v3.0.0`.
+
+Para teste local:
 
 ```bash
 python3 -m http.server 8080
 ```
 
-Abra `http://localhost:8080/financas-pwa/`.
+Abra `http://localhost:8080/` (ou o subdiretório correspondente). Não abra `index.html` diretamente: Auth, service worker, instalação e PDF.js precisam de HTTP/HTTPS.
 
-> Abrir `index.html` diretamente permite usar os recursos básicos em alguns navegadores, mas service worker, instalação PWA e leitura de PDF precisam de HTTP/HTTPS.
+## Primeiro acesso
 
-## Instalar no iPhone
-
-1. Publique esta pasta em um host HTTPS.
-2. Abra o endereço no Safari.
-3. Toque em **Compartilhar**.
-4. Escolha **Adicionar à Tela de Início**.
-5. Ative **Abrir como Web App** (se exibido) e toque em **Adicionar**.
+1. Conecte-se à internet.
+2. Entre com o e-mail e senha do usuário criado no Supabase.
+3. Se a PWA encontrar dados da versão local anterior, confirme a migração.
+4. Aguarde o indicador mostrar **Sincronizado**.
+5. Use o mesmo login no PC e no celular.
 
 ## Recursos
 
-- Dashboard por mês com receitas, despesas, saldo, taxa de economia e orçamento.
-- Tendência dos últimos 6 meses e gastos por categoria sem bibliotecas externas.
-- Inclusão, edição, exclusão, busca e filtros de movimentações.
-- Importação de PDF, CSV e TXT com prévia e detecção de duplicidade.
-- PDF.js empacotado localmente: nenhuma CDN em tempo de execução.
-- Depois da confirmação, a importação atualiza imediatamente Lista e Dashboard.
-- Contas a pagar, ideias/metas e orçamento mensal.
+- Supabase Auth com sessão persistente e logout.
+- Movimentações, orçamentos mensais, boletos e ideias no Supabase.
+- Dashboard e Lista atualizados imediatamente após inclusão ou importação.
+- Realtime entre dispositivos autenticados com a mesma conta.
+- Cache separado por usuário e fila persistente para operações offline.
+- Retomada automática da sincronização quando a conexão volta.
+- Importação PDF/CSV/TXT com prévia, edição e detecção de duplicidade.
+- PDF.js local: o PDF é processado no dispositivo e não é enviado ao servidor.
 - Backup e restauração JSON.
-- Persistência local e funcionamento offline após o primeiro acesso.
+- Migração segura dos dados locais da versão 2, com cópia de segurança preservada.
 
-## Privacidade e armazenamento
+## Estrutura esperada
 
-Os dados financeiros ficam no armazenamento local do navegador. Não existe envio para servidor. Limpar os dados do Safari/navegador pode apagar a base; exporte backups regularmente.
+```text
+financas-pwa/
+├── index.html
+├── app.js
+├── styles.css
+├── sw.js
+├── manifest.webmanifest
+├── README.md
+├── RELATORIO-ALTERACOES.md
+├── icons/
+│   ├── icon-180.png
+│   ├── icon-192.png
+│   └── icon-512.png
+└── vendor/                 # preserve a pasta do repositório atual
+    ├── pdf.mjs
+    ├── pdf.worker.mjs
+    └── PDFJS-LICENSE.txt
+```
 
-## Estrutura
+## Supabase
 
-- `index.html`: interface
-- `styles.css`: design responsivo
-- `app.js`: regras, armazenamento, importações e gráficos
-- `manifest.webmanifest`: instalação PWA
-- `sw.js`: cache offline
-- `vendor/`: PDF.js local e licença
-- `icons/`: ícones da PWA
+O app já contém a Project URL e a Publishable Key fornecidas. Não inclua `service_role`, Secret Key, senha do banco ou connection string no repositório.
+
+O esquema esperado é o já criado:
+
+- `transactions`: `id`, `user_id`, `transaction_date`, `description`, `category`, `type`, `payment_method`, `amount`, `source`, `created_at`, `updated_at`.
+- `budgets`: `id`, `user_id`, `month`, `amount`, `created_at`, `updated_at`; restrição única em `(user_id, month)`.
+- `bills`: `id`, `user_id`, `description`, `amount`, `due_date`, `status`, `created_at`, `updated_at`.
+- `ideas`: `id`, `user_id`, `text`, `created_at`, `updated_at`.
+
+RLS deve permanecer habilitado com acesso condicionado a `auth.uid() = user_id`, e as tabelas devem continuar na publicação `supabase_realtime`.
+
+## Teste rápido
+
+1. Entre no celular e no PC com a mesma conta.
+2. Crie uma movimentação no celular; confira Lista/Dashboard e depois o PC.
+3. Importe um arquivo e confirme que o mesmo arquivo não cria duplicidades.
+4. Salve orçamento, boleto e ideia; confira o outro dispositivo.
+5. Crie uma movimentação offline e religue a rede; o status deve mudar para **Sincronizado**.
+
+Consulte `RELATORIO-ALTERACOES.md` para o relatório completo e o roteiro detalhado.

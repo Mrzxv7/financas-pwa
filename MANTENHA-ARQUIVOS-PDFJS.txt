@@ -1,0 +1,8 @@
+Este pacote não substitui os dois arquivos PDF.js que já estão no repositório.
+
+Mantenha nesta pasta:
+- pdf.mjs
+- pdf.worker.mjs
+- PDFJS-LICENSE.txt
+
+O app.js continua importando ./vendor/pdf.mjs e usando ./vendor/pdf.worker.mjs localmente.
