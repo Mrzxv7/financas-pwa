@@ -1,7 +1,7 @@
 {
   "name": "Copiloto Financeiro",
   "short_name": "Finanças",
-  "description": "Finanças auditáveis com hotfix MFA Supabase, step-up AAL2, adaptadores e fluxo de caixa.",
+  "description": "Finanças auditáveis com hotfix de importação, timeout, retry, MFA e adaptadores.",
   "lang": "pt-BR",
   "start_url": "./",
   "scope": "./",

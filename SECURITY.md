@@ -16,7 +16,7 @@ PostgreSQL + RLS (auth.uid() = user_id AND aal = aal2)
 
 O GitHub Pages hospeda a interface. Os dados sincronizados ficam no PostgreSQL do Supabase; uma cópia de trabalho e a fila offline ficam no navegador do usuário.
 
-## Controles da versão 4.6.1
+## Controles da versão 4.7.1
 
 ### CAPTCHA
 
@@ -157,3 +157,14 @@ O isolamento efetivo está no banco. A interface também impede a abertura da á
 - O retry ocorre no máximo uma vez e apenas em erro compatível com fator já existente.
 - QR, chave e URI permanecem somente na memória e na tela durante o enrollment.
 - Não há nova migration nem mudança nas chaves do Supabase/Cloudflare.
+
+## Importação e manutenção 4.7
+
+- Timeouts e cancelamento evitam bloqueio indefinido do dispositivo.
+- Arquivos financeiros continuam processados localmente.
+- Erros da fila não removem dados locais; permanecem auditáveis até nova tentativa.
+- `import_mappings` só sincroniza em AAL2.
+- Limpar cache preserva autenticação, dados remotos e fila offline.
+- Apagar dados exige AAL2, confirmação por palavra e mantém a conta Auth.
+- Backups completos exigem step-up AAL2.
+- Nenhuma nova migration ou credencial foi adicionada.

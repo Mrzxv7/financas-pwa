@@ -1,4 +1,4 @@
-# Validação técnica — versão 4.6.1 hotfix MFA Supabase
+# Validação técnica — versão 4.7.1 hotfix de importação
 
 ## Verificações automatizadas
 
@@ -6,7 +6,17 @@
 - JSON válido em `manifest.webmanifest`.
 - IDs HTML usados pelo JavaScript presentes e sem duplicidade.
 - Referências do service worker existentes no pacote.
-- Cache identificado como `copiloto-financeiro-v4.6.1`.
+- Cache identificado como `copiloto-financeiro-v4.7.1`.
+- Botão Tentar novamente validado nos estados de erro/cancelamento/timeout.
+- Timeouts de arquivo, PDF.js, páginas, OCR, Supabase e sincronização validados.
+- Loading fechado em sucesso, erro, timeout e cancelamento.
+- Pipeline Bradesco integrado até Lista/Dashboard e chamadas Supabase validado.
+- Arquivo desconhecido encerra loading e abre mapeador.
+- Fila offline serializada e recuperação online validadas.
+- `import_batches` e `import_mappings` validados na fila.
+- Tela Configurações, contadores, armazenamento e manutenção validados.
+- Diferenciação cache versus exclusão forte de dados validada estaticamente.
+- Versão confirmada sem migration adicional.
 - Envelope atual do Supabase JS `{ data: { id, totp }, error }` validado.
 - Resposta direta e envelopes aninhados normalizados.
 - `data.id`, `data.totp.qr_code`, `secret` e `uri` validados.

@@ -1,4 +1,4 @@
-# Roteiro de validação — versão 4.6.1
+# Roteiro de validação — versão 4.7.1
 
 ## 1. Configuração estática
 
@@ -162,3 +162,21 @@ Validar pelo menos em 320 × 568, 390 × 844 e 430 × 932:
 6. Saia e entre novamente; o fator verificado deve pedir código.
 7. Simule uma tentativa interrompida e confirme que novo enrollment limpa apenas o fator não verificado.
 8. Confirme que não houve necessidade de nova migration ou alteração no Cloudflare.
+
+## 16. Importação resiliente e configurações
+
+1. Importe o PDF Bradesco no iPhone e desktop.
+2. Observe estágios PDF.js/OCR e confirme saída do loading.
+3. Cancele uma importação e confirme que nenhum dado foi inserido.
+4. Teste arquivo inválido e valide mensagem útil.
+5. Importe formato desconhecido e confirme abertura do mapeador.
+6. Confirme prévia, Lista, Dashboard e lote de conciliação.
+7. Coloque o dispositivo offline, importe/confirme e verifique a fila.
+8. Reconecte e use **Tentar sincronizar agora**.
+9. Confira `transactions`, `import_batches` e, em AAL2, `import_mappings`.
+10. Exporte e restaure um backup completo.
+11. Limpe cache e confirme que conta/dados remotos permanecem.
+12. Teste exclusão de dados: AAL2 + palavra `APAGAR`.
+13. Recarregue e remova mapeamentos próprios.
+14. Confira a versão, conta, AAL, armazenamento e contadores.
+15. Em erro/timeout/cancelamento, use **Tentar novamente** e confirme nova execução sem recarregar a PWA.

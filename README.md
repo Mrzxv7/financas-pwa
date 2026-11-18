@@ -1,6 +1,35 @@
-# Copiloto Financeiro 4.6.1 — hotfix MFA Supabase
+# Copiloto Financeiro 4.7.1 — hotfix definitivo de importação
 
 PWA financeira pessoal com Supabase, conciliação verificável, regras versionadas, fluxo de caixa, recuperação de senha, **MFA TOTP opcional com step-up AAL2** e **CAPTCHA Cloudflare Turnstile**.
+
+## Correção do upload/importação 4.7
+
+- Todas as etapas possuem timeout: leitura, hash, PDF.js, páginas, OCR, adaptador e sincronização.
+- A operação pode ser cancelada e o loading possui watchdog geral; a tela nunca deve permanecer presa indefinidamente.
+- PDF.js tenta worker local e um modo compatível sem worker.
+- OCR possui timeout de carga, inicialização e reconhecimento por página, além de encerramento do worker.
+- A interface mostra o estágio atual e sempre termina em sucesso, mapeamento necessário, erro útil ou cancelamento.
+- Em erro, cancelamento ou timeout, aparece o botão **Tentar novamente** usando o último arquivo/texto mantido somente em memória.
+- Chamadas Supabase possuem timeout e erros por tabela.
+- A fila offline é serializada, evita operações concorrentes para o mesmo registro e preserva tentativas/último erro.
+- `import_batches` e `import_mappings` aparecem separadamente no diagnóstico de fila.
+- Confirmação atualiza Lista/Dashboard localmente e tenta sincronizar imediatamente; se falhar, informa quantos itens permaneceram na fila.
+
+## Configurações completas
+
+- conta, AAL, conectividade e versão;
+- status da fila e botão sincronizar agora;
+- uso do armazenamento local;
+- limpar cache local/PWA sem apagar conta ou dados sincronizados;
+- backup completo e restauração;
+- segurança/MFA;
+- listar, recarregar e remover mapeamentos bancários próprios;
+- logout;
+- exclusão forte de todos os dados financeiros mediante AAL2 e digitação de `APAGAR`.
+
+**Limpar cache não é apagar dados.** A limpeza preserva a conta, dados do Supabase e fila offline. A zona de risco apaga os dados financeiros do usuário, mas mantém a conta de login.
+
+**Não há nova migration SQL nem alteração de Supabase/Cloudflare para a 4.7.1**, considerando o schema já reparado e as migrações até 4.6 aplicadas.
 
 ## Hotfix 4.6.1
 
@@ -96,12 +125,12 @@ Nesses casos, o app não cria âncora nem ajuste automaticamente e informa a nec
 ## Publicação no GitHub Pages
 
 1. Extraia o ZIP.
-2. Abra a pasta `financas-pwa-4.6.1-mfa-hotfix`.
+2. Abra a pasta `financas-pwa-4.7.1-import-hotfix`.
 3. Envie **todo o conteúdo interno da pasta** para a raiz do repositório `financas-pwa`.
 4. Substitua os arquivos existentes, incluindo `security-config.js`, `app.js`, `index.html`, `styles.css`, `sw.js` e a pasta `vendor`.
 5. Não envie o próprio ZIP para a raiz do site.
 6. Aguarde o GitHub Pages concluir o deploy.
-7. No iPhone, feche totalmente a PWA instalada e abra novamente. O cache `copiloto-financeiro-v4.6.1` força a atualização dos arquivos estáticos.
+7. No iPhone, feche totalmente a PWA instalada e abra novamente. O cache `copiloto-financeiro-v4.7.1` força a atualização dos arquivos estáticos.
 
 ## Banco e MFA
 
@@ -112,6 +141,7 @@ Nesses casos, o app não cria âncora nem ajuste automaticamente e informa a nec
 - Execute `supabase-migration-v4.5-adapters-mapper.sql` para criar os mapeamentos sincronizados com RLS AAL2.
 - Execute por último `supabase-migration-v4.6-optional-mfa.sql`. Ela libera as tabelas de uso comum para AAL1/AAL2 e mantém `import_mappings` em AAL2.
 - A versão 4.6.1 não adiciona migração. Não execute novamente a 4.6 se ela já foi aplicada.
+- A versão 4.7.1 também não adiciona migration. Com o schema informado como reparado, basta publicar os arquivos.
 - No primeiro login de uma conta sem fator, o app mostra o QR Code para cadastro no Microsoft Authenticator, Google Authenticator, 1Password ou outro aplicativo TOTP compatível.
 - Contas com MFA já cadastrado precisam informar o código de seis dígitos antes de abrir os dados financeiros.
 

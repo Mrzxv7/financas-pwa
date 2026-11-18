@@ -1,4 +1,4 @@
-# Relatório de alterações — 4.6.1
+# Relatório de alterações — 4.7.1
 
 ## Objetivo
 
@@ -125,3 +125,28 @@ Ler corretamente o modelo de fatura aberta do Bradesco sem remover a proteção 
 - Cancelamento remove o fator pendente criado na tentativa.
 - Cache atualizado para `copiloto-financeiro-v4.6.1`.
 - Sem nova migration, alteração no Supabase ou alteração no Cloudflare.
+
+## Evolução 4.7 - importação resiliente e manutenção
+
+- Timeouts e cancelamento em todas as etapas de importação.
+- Watchdog impede loading preso indefinidamente.
+- PDF.js com fallback compatível sem worker.
+- OCR página a página, progresso e encerramento seguro.
+- Requisições Supabase com timeout e mensagem por tabela.
+- Fila serializada, consolidada por registro e com tentativas/erros.
+- Confirmação tenta sincronizar e informa itens pendentes.
+- Tela Configurações mobile-first com conta, fila, armazenamento e versão.
+- Sincronizar agora, limpar cache/PWA, backup e restauração.
+- Manutenção de mapeamentos bancários próprios.
+- Exclusão forte com AAL2 e palavra `APAGAR`.
+- Cache atualizado para `copiloto-financeiro-v4.7.0`.
+- Sem migration adicional ou mudança no Cloudflare/Supabase.
+
+## Hotfix 4.7.1 - prioridade upload/importação
+
+- Confirmação do schema reparado sem migration adicional.
+- Botão **Tentar novamente** em erro, timeout ou cancelamento.
+- Último arquivo/texto mantido somente em memória para retry.
+- Fila offline preserva alterações concorrentes feitas durante sincronização.
+- Fluxo desconhecido validado até prévia, confirmação, Supabase, Lista e Dashboard.
+- Cache atualizado para `copiloto-financeiro-v4.7.1`.
