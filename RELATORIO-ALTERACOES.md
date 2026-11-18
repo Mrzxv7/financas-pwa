@@ -1,4 +1,4 @@
-# Relatório de alterações — 4.6.0
+# Relatório de alterações — 4.6.1
 
 ## Objetivo
 
@@ -44,7 +44,7 @@ Ler corretamente o modelo de fatura aberta do Bradesco sem remover a proteção 
 
 ### PWA e documentação
 
-- Cache atualizado para `copiloto-financeiro-v4.6.0`.
+- Cache atualizado para `copiloto-financeiro-v4.6.1`.
 - `security-config.js` incluído no cache estático.
 - Script Turnstile continua fora do cache do service worker.
 - Layout responsivo para CAPTCHA e QR Code.
@@ -113,3 +113,15 @@ Ler corretamente o modelo de fatura aberta do Bradesco sem remover a proteção 
 - Step-up guiado para mapeamentos reutilizáveis, backups, limpeza e remoção de fator.
 - Interface futura de telefone/SMS desativada, sem simulação de códigos.
 - Nova migração `supabase-migration-v4.6-optional-mfa.sql`.
+
+## Hotfix 4.6.1 - retorno atual do Supabase MFA
+
+- Normalização do envelope `{ data, error }` de `mfa.enroll`.
+- Consumo de `data.id` e `data.totp.qr_code/secret/uri`.
+- Compatibilidade mantida com resposta REST direta.
+- Challenge e verify também normalizam respostas envelopadas.
+- Listagem e remoção segura de TOTP não verificado antes do enrollment.
+- Retry único em conflito causado por fator incompleto.
+- Cancelamento remove o fator pendente criado na tentativa.
+- Cache atualizado para `copiloto-financeiro-v4.6.1`.
+- Sem nova migration, alteração no Supabase ou alteração no Cloudflare.

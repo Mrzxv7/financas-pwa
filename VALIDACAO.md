@@ -1,4 +1,4 @@
-# Validação técnica — versão 4.6.0 MFA opcional e step-up
+# Validação técnica — versão 4.6.1 hotfix MFA Supabase
 
 ## Verificações automatizadas
 
@@ -6,7 +6,13 @@
 - JSON válido em `manifest.webmanifest`.
 - IDs HTML usados pelo JavaScript presentes e sem duplicidade.
 - Referências do service worker existentes no pacote.
-- Cache identificado como `copiloto-financeiro-v4.6.0`.
+- Cache identificado como `copiloto-financeiro-v4.6.1`.
+- Envelope atual do Supabase JS `{ data: { id, totp }, error }` validado.
+- Resposta direta e envelopes aninhados normalizados.
+- `data.id`, `data.totp.qr_code`, `secret` e `uri` validados.
+- Challenge e verify envelopados validados.
+- Limpeza segura e retry único de fatores TOTP incompletos validados.
+- Hotfix confirmado sem nova migração ou configuração externa.
 - QR SVG/data URI do Supabase, chave manual e URI otpauth validados.
 - Enrollment, challenge e verify validados com endpoints e parâmetros.
 - Primeiro acesso AAL1 sem fator e login com fator existente validados.

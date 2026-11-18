@@ -1,6 +1,20 @@
-# Copiloto Financeiro 4.6.0 — MFA opcional e step-up AAL2
+# Copiloto Financeiro 4.6.1 — hotfix MFA Supabase
 
 PWA financeira pessoal com Supabase, conciliação verificável, regras versionadas, fluxo de caixa, recuperação de senha, **MFA TOTP opcional com step-up AAL2** e **CAPTCHA Cloudflare Turnstile**.
+
+## Hotfix 4.6.1
+
+- O enrollment agora normaliza exatamente o retorno do Supabase JS: `{ data: { id, totp: { qr_code, secret, uri } }, error }`.
+- Também preserva compatibilidade com a resposta REST direta usada internamente pela PWA.
+- `data.id` alimenta challenge e verify.
+- `data.totp.qr_code` é renderizado como SVG bruto, data URI, URL HTTPS ou base64.
+- `data.totp.secret` e `data.totp.uri` são sempre exibidos e copiáveis quando disponíveis.
+- Challenge e verify também aceitam respostas envelopadas em `data`.
+- Fatores TOTP não verificados de tentativas anteriores são listados e removidos antes de novo enrollment.
+- Em conflito por fator incompleto, o app atualiza o usuário, limpa apenas fatores não verificados e tenta o enrollment mais uma vez.
+- Cancelar o enrollment remove o fator incompleto atual.
+
+**Não existe nova migração SQL nem nova configuração de Supabase ou Cloudflare para a 4.6.1.** Se a migração 4.6 já foi executada e Turnstile/TOTP já estavam habilitados, basta publicar os arquivos do hotfix.
 
 ## MFA para pessoas comuns
 
@@ -82,12 +96,12 @@ Nesses casos, o app não cria âncora nem ajuste automaticamente e informa a nec
 ## Publicação no GitHub Pages
 
 1. Extraia o ZIP.
-2. Abra a pasta `financas-pwa-4.6.0-optional-mfa`.
+2. Abra a pasta `financas-pwa-4.6.1-mfa-hotfix`.
 3. Envie **todo o conteúdo interno da pasta** para a raiz do repositório `financas-pwa`.
 4. Substitua os arquivos existentes, incluindo `security-config.js`, `app.js`, `index.html`, `styles.css`, `sw.js` e a pasta `vendor`.
 5. Não envie o próprio ZIP para a raiz do site.
 6. Aguarde o GitHub Pages concluir o deploy.
-7. No iPhone, feche totalmente a PWA instalada e abra novamente. O cache `copiloto-financeiro-v4.6.0` força a atualização dos arquivos estáticos.
+7. No iPhone, feche totalmente a PWA instalada e abra novamente. O cache `copiloto-financeiro-v4.6.1` força a atualização dos arquivos estáticos.
 
 ## Banco e MFA
 
@@ -97,6 +111,7 @@ Nesses casos, o app não cria âncora nem ajuste automaticamente e informa a nec
 - Depois, execute `supabase-migration-v4.4-generic-opening-balance.sql`. Ela adiciona a identidade genérica de conta, parser e evidência, preservando a compatibilidade com `card_key` da 4.3.
 - Execute `supabase-migration-v4.5-adapters-mapper.sql` para criar os mapeamentos sincronizados com RLS AAL2.
 - Execute por último `supabase-migration-v4.6-optional-mfa.sql`. Ela libera as tabelas de uso comum para AAL1/AAL2 e mantém `import_mappings` em AAL2.
+- A versão 4.6.1 não adiciona migração. Não execute novamente a 4.6 se ela já foi aplicada.
 - No primeiro login de uma conta sem fator, o app mostra o QR Code para cadastro no Microsoft Authenticator, Google Authenticator, 1Password ou outro aplicativo TOTP compatível.
 - Contas com MFA já cadastrado precisam informar o código de seis dígitos antes de abrir os dados financeiros.
 

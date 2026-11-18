@@ -1,4 +1,4 @@
-# Roteiro de validação — versão 4.6.0
+# Roteiro de validação — versão 4.6.1
 
 ## 1. Configuração estática
 
@@ -151,3 +151,14 @@ Validar pelo menos em 320 × 568, 390 × 844 e 430 × 932:
 12. Cancele o enrollment e confirme retorno ao app sem fator incompleto.
 13. Remova o fator em sessão AAL2 e valide o próximo login.
 14. Confirme que a área SMS está desativada e não envia/simula códigos.
+
+## 15. Hotfix do retorno Supabase
+
+1. Inicie enrollment e confirme QR, chave e URI simultaneamente.
+2. Copie a chave e a URI.
+3. Cancele; confirme que o fator incompleto desaparece.
+4. Inicie novamente e conclua challenge + verify.
+5. Confirme sessão AAL2.
+6. Saia e entre novamente; o fator verificado deve pedir código.
+7. Simule uma tentativa interrompida e confirme que novo enrollment limpa apenas o fator não verificado.
+8. Confirme que não houve necessidade de nova migration ou alteração no Cloudflare.

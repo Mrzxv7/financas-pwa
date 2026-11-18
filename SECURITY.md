@@ -16,7 +16,7 @@ PostgreSQL + RLS (auth.uid() = user_id AND aal = aal2)
 
 O GitHub Pages hospeda a interface. Os dados sincronizados ficam no PostgreSQL do Supabase; uma cópia de trabalho e a fila offline ficam no navegador do usuário.
 
-## Controles da versão 4.6.0
+## Controles da versão 4.6.1
 
 ### CAPTCHA
 
@@ -148,3 +148,12 @@ O isolamento efetivo está no banco. A interface também impede a abertura da á
 - A URI de fallback contém apenas os parâmetros padrão do TOTP e a chave retornada pelo Supabase.
 - Segredo e URI não são persistidos pelo app nem enviados por e-mail.
 - SMS/telefone permanece desativado até existir integração oficial com o Supabase.
+
+## Hotfix de enrollment 4.6.1
+
+- O envelope do SDK é normalizado sem registrar segredo, URI ou QR em logs.
+- Somente fatores TOTP não verificados são removidos automaticamente.
+- Fatores `verified` nunca são apagados durante a limpeza de enrollment incompleto.
+- O retry ocorre no máximo uma vez e apenas em erro compatível com fator já existente.
+- QR, chave e URI permanecem somente na memória e na tela durante o enrollment.
+- Não há nova migration nem mudança nas chaves do Supabase/Cloudflare.
